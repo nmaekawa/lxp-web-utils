@@ -54,6 +54,10 @@ h3 {
   color: green;
 }
 
+.bad-setting {
+  color: crimson;
+}
+
 .text-muted {
   cursor: not-allowed;
 }

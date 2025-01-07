@@ -217,6 +217,80 @@
       <div class="accordion-item">
         <h2 class="accordion-header">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+            data-bs-target="#panelsStayOpen-QSet" aria-expanded="false" aria-controls="panelsStayOpen-Access">
+            <span class="h2">Question Sets</span>
+            <span id="qset-details" class="settings-details"></span>
+          </button>
+        </h2>
+        <div id="panelsStayOpen-QSet" class="accordion-collapse collapse container">
+          <div class="accordion-body row">
+            <div class="col-md-4">
+              <h3>Display</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label><input type="radio" class="form-check-input" id="display_one" name="qset_display"
+                      value="display_one" />
+                    One at a time</label>
+                </li>
+                <li>
+                  <label><input type="radio" class="form-check-input" id="display_all" name="qset_display"
+                      value="display_all" />
+                    All at once</label>
+                </li>
+                <li>
+                  <label><input type="radio" class="form-check-input" id="display_no_change" name="qset_display"
+                      value="display_no_change" checked />
+                    No change</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4">
+              <h3>Passing</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-label"><input type="number" class="form-control" id="num_attempts" name="passing"
+                      value="num_attempts" placeholder="No change" />
+                    # Attempts</label>
+                </li>
+                <li>
+                  <label class="form-label"><input type="number" class="form-control" id="pass_percent" name="passing"
+                      value="pass_percent" placeholder="No change" />
+                    Passing percentage</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4">
+              <h3>Show answers</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="show_when_submitted"
+                      name="show_answers" value="show_when_submitted" />
+                    When submitted</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="show_after_attempts"
+                      name="show_answers" value="show_after_attempts" />
+                    After all attempts</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="show_never"
+                      name="show_answers" value="show_never" checked />
+                    Never</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="show_no_change"
+                      name="show_answers" value="show_no_change" checked />
+                    No change</label>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
             data-bs-target="#panelsStayOpen-Output" aria-expanded="false" aria-controls="panelsStayOpen-Output">
             <span class="h2">Output</span>
             <span id="output-details" class="settings-details"></span>

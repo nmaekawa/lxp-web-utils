@@ -3,7 +3,7 @@ console.debug("javscript loaded");
 import { createCourseSheet, getCourseName } from "./course_sheet";
 import { Archive } from "@obsidize/tar-browserify";
 import { v4 as uuidv4 } from 'uuid';
-import {gzip, ungzip} from "pako";
+import { gzip, ungzip } from "pako";
 import "bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../css/index.css";
@@ -11,7 +11,7 @@ import "../css/index.css";
 // TODO list:
 // Handle INVISIBLE_CONTAINERs better in sectioning. (or at all)
 
-const default_checkboxes: { [key: string]: boolean } = {
+const default_checkboxes: { [key: string]: boolean | number } = {
   just_spreadsheet: false,
   just_test: false,
   lock: false,
@@ -26,6 +26,13 @@ const default_checkboxes: { [key: string]: boolean } = {
   section_per_te: false,
   section_per_page: false,
   keep_sectioning: true,
+  display_one: false,
+  display_all: false,
+  display_no_change: true,
+  num_attempts: -1,
+  num_attempts_no_change: true,
+  pass_percent: -1,
+  pass_percent_no_change: true,
   spreadsheet: true,
   clean: false,
   dont_clean: true,
@@ -75,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
   for (let option in default_checkboxes) {
     let element = document.getElementById(option) as HTMLInputElement;
     if (element) {
-      element.checked = default_checkboxes[option];
+      element.checked = !!default_checkboxes[option];
     } else {
       console.debug("Could not find element with id=", option);
     }
@@ -156,6 +163,12 @@ function getOptions(): {
   required_optional: string;
   scrubbing: string;
   section_scope: string;
+  qset_display: string;
+  pass_percent: number;
+  pass_percent_no_change: boolean;
+  num_attempts: number;
+  num_attempts_no_change: boolean;
+  show_answers: string;
   clean: boolean;
   spreadsheet: boolean;
   test: boolean;
@@ -187,6 +200,46 @@ function getOptions(): {
   ) as HTMLInputElement;
   let section_scope_value = section_scope.value;
 
+  // How many attempts are allowed?
+  let qset_display = document.querySelector(
+    'input[name="qset_display"]:checked'
+  ) as HTMLInputElement;
+  let qset_display_value = qset_display.value;
+
+  // What's the minimum passing percentage?
+  let pass_percent_no_change = true;
+  let pass_percent = document.getElementById("pass_percent") as HTMLInputElement;
+  let pass_percent_temp = pass_percent.value;
+  let pass_percent_value = -1; // Default: No passing percentage required.
+  // Strip out % signs
+  if (pass_percent_temp.endsWith("%")) {
+    pass_percent_temp = pass_percent_temp.slice(0, -1);
+  }
+  pass_percent_value = Number(pass_percent_temp);
+  if (isNaN(pass_percent_value) || pass_percent_temp === "") {
+    // We've been passed a non-numeric value, so treat it as "no change"
+    pass_percent_value = -1;
+  } else {
+    pass_percent_no_change = false;
+  }
+
+  // How many attempts are allowed?
+  let num_attempts_no_change = true;
+  let num_attempts = document.getElementById("num_attempts") as HTMLInputElement;
+  let num_attempts_value = Number(num_attempts.value);
+  // If we're passed any non-blank string, treat it as "no change"
+  if (isNaN(num_attempts_value) || num_attempts.value === "") {
+    num_attempts_value = -1;
+  } else {
+    num_attempts_no_change = false;
+  }
+
+  // When should we show the answers?
+  let show_answers = document.querySelector(
+    'input[name="show_answers"]:checked'
+  ) as HTMLInputElement;
+  let show_answers_value = show_answers.value;
+
   // Get the clean checkbox
   let clean = document.getElementById("clean") as HTMLInputElement;
   let clean_value = clean.checked;
@@ -208,6 +261,12 @@ function getOptions(): {
     required_optional_value = "no_change";
     scrubbing_value = "no_change";
     section_scope_value = "no_change";
+    qset_display_value = "no_change";
+    pass_percent_value = -1;
+    pass_percent_no_change = true;
+    num_attempts_value = -1;
+    num_attempts_no_change = true;
+    show_answers_value = "no_change";
     clean_value = false;
     include_course_spreadsheet_value = true;
     just_test_value = just_test.checked;
@@ -219,6 +278,12 @@ function getOptions(): {
     required_optional: required_optional_value,
     scrubbing: scrubbing_value,
     section_scope: section_scope_value,
+    qset_display: qset_display_value,
+    pass_percent: pass_percent_value,
+    pass_percent_no_change: pass_percent_no_change,
+    num_attempts: num_attempts_value,
+    num_attempts_no_change: num_attempts_no_change,
+    show_answers: show_answers_value,
     clean: clean_value,
     spreadsheet: include_course_spreadsheet_value,
     test: just_test_value,
@@ -235,8 +300,9 @@ function updateOptionSummary(): void {
   let options = getOptions();
   let access_span = document.getElementById("access-details");
   let section_span = document.getElementById("section-details");
+  let qset_span = document.getElementById("qset-details");
   let output_span = document.getElementById("output-details");
-  if (!access_span || !section_span || !output_span) {
+  if (!access_span || !section_span || !output_span || !qset_span) {
     console.error("Could not find one of the details spans");
     return;
   }
@@ -245,6 +311,7 @@ function updateOptionSummary(): void {
   access_span.textContent = "";
   section_span.textContent = "";
   output_span.textContent = "";
+  qset_span.textContent = "";
 
   let access_options = "Locking: ";
   if (options.lock_unlock === "lock") {
@@ -284,6 +351,60 @@ function updateOptionSummary(): void {
   }
   section_span.innerHTML = section_options;
 
+  let qset_options = "Display: ";
+  if (options.qset_display === "display_one") {
+    qset_options +=
+      "<span class='changed-setting'>one question at a time</span>, ";
+  } else if (options.qset_display === "display_all") {
+    qset_options +=
+      "<span class='changed-setting'>all questions at once</span>, ";
+  } else {
+    qset_options += "no change";
+  }
+
+  // Numerical things take a little extra checking.
+  console.log(options.pass_percent);
+  qset_options += ", # Attempts: ";
+  if (options.num_attempts_no_change) {
+    qset_options += "no change";
+  } else if (options.num_attempts <= 0 || isNaN(Number(options.num_attempts))) {
+    qset_options += "<span class='changed-setting'>unlimited</span>";
+  } else if (options.num_attempts > 10) {
+    qset_options += "<span class='bad-setting'>" + String(options.num_attempts) + "</span>";
+  }
+  else {
+    qset_options += "<span class='changed-setting'>" + String(options.num_attempts) + "</span>";
+  }
+  qset_options += ", Passing: ";
+  if (options.pass_percent_no_change) {
+    qset_options += "no change";
+  } else if (options.pass_percent <= 0 || isNaN(Number(options.pass_percent))) {
+    qset_options += "<span class='changed-setting'>no minimum</span>";
+  } else if (options.pass_percent > 100 || options.pass_percent < 0) {
+    qset_options += "<span class='bad-setting'>" + String(options.pass_percent) + "%</span>";
+  }
+  else {
+    qset_options += "<span class='changed-setting'>" + String(options.pass_percent) + "%</span>";
+  }
+
+  qset_options += ", Show answers: ";
+  if (options.show_answers === "show_when_submitted") {
+    qset_options += "<span class='changed-setting'>on submission</span>";
+  } else if (options.show_answers === "show_after_attempts") {
+    qset_options += "<span class='changed-setting'>after all attempts</span>";
+  } else if (options.show_answers === "show_never") {
+    qset_options += "<span class='changed-setting'>never</span>";
+  } else {
+    qset_options += "no change";
+  }
+  qset_span.innerHTML = qset_options;
+
+
+  // qset_display: string;
+  // pass_percent: number;
+  // num_attempts: number;
+  // show_answers: string;
+
   let output_options = "Output: ";
   if (options.clean) {
     output_options += "<span class='changed-setting'>Clean course</span>, ";
@@ -315,7 +436,7 @@ async function updateStatus(stage: string) {
   console.debug(stage + " (" + progress_stage[stage] + "%)");
 
   // If we're done, make the progress bar solid.
-  if(progress_stage[stage] === 100) {
+  if (progress_stage[stage] === 100) {
     progress_bar.classList.remove("progress-bar-animated");
     progress_bar.classList.remove("progress-bar-striped");
   }
@@ -408,9 +529,9 @@ function updateConfirmationDialog(input_file: File): void {
     option_list.push(
       String(
         "<strong>" +
-          human_readable_options[e] +
-          ":</strong> " +
-          options[e as keyof object]
+        human_readable_options[e] +
+        ":</strong> " +
+        options[e as keyof object]
       )
     )
   );
@@ -628,11 +749,11 @@ async function getTarFiles(): Promise<Archive> {
   ) as HTMLInputElement;
   if (!input_file_element.files) {
     console.error("Could not find the file");
-    return new Promise(() => {});
+    return new Promise(() => { });
   }
   if (input_file_element.files.length === 0) {
     console.error("No file uploaded");
-    return new Promise(() => {});
+    return new Promise(() => { });
   }
   const input_file = input_file_element.files[0];
 
@@ -713,7 +834,7 @@ async function sectionCourse(
   //   - Skip detached activities.
 
   console.debug("Section scope: " + section_scope);
-  
+
   let activities = json_files.filter((e) => e.name.includes("activities"))[0]
     .data;
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
@@ -872,10 +993,10 @@ async function sectionCourse(
   for (let act of activities) {
     try {
       delete act.sc_position;
-    } catch (e) {}
+    } catch (e) { }
     try {
       delete act.section_position;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   let all_element_parents = elements.map((e) => e.activity_id);
@@ -934,7 +1055,7 @@ function disableVideoScrubbing(
   elements.data.forEach((e) => {
     if (e.type === "VIDEO") {
       e.data.disableScrubbing = scrub;
-      if(scrub){
+      if (scrub) {
         e.data.completionPercentage = 95; // Allows for a ~10 second bumper on a 3 minute video.
       }
     }
@@ -968,10 +1089,10 @@ async function cleanCourse(
   for (let act of activities) {
     try {
       delete act.sc_position;
-    } catch (e) {}
+    } catch (e) { }
     try {
       delete act.section_position;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // If there are any elements that are output_only and detached, we need to strip them out.
@@ -1170,6 +1291,6 @@ function makeUUID(): string {
 }
 
 // Basic sleep function 
-function sleep(ms:number) {
+function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms || 1000));
 }
