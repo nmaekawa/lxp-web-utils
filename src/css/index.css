@@ -1,0 +1,63 @@
+h2.accordion-header {
+  border-bottom: 1px solid #000;
+  background-color: gainsboro;
+  padding: 0.25em;
+}
+
+h2.accordion-header > button.accordion-button {
+  background-color: gainsboro;
+}
+
+#confirmation_header_text {
+  background-color: transparent;
+  border: none;
+}
+
+#confirmation_dialog {
+  word-wrap: anywhere;
+}
+
+#go {
+  padding-left: 2em;
+  padding-right: 2em;
+}
+
+h3 {
+  font-size: x-large;
+}
+
+.row {
+  margin-bottom: 1em;
+}
+
+.filename {
+  max-width: 100%;
+}
+
+.filename > * {
+  max-width: 100%;
+  font-style: italic;
+}
+
+.form-check-input {
+  border: 2px solid #666;
+}
+
+.settings-details {
+  float: right;
+  font-style: italic;
+  margin-left: 2rem;
+  margin-bottom: 2px;
+}
+
+.changed-setting {
+  color: green;
+}
+
+.text-muted {
+  cursor: not-allowed;
+}
+
+.text-muted > * {
+  cursor: not-allowed;
+}

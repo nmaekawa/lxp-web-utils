@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>LXPediter Web Utilities</title>
+</head>
+
+<body>
+  <main class="container">
+    <div class="row">
+      <h1 class="display-1">LXP Workflow Expediter</h1>
+      <div class="col-md-8">
+        <p>
+          Upload your course tarball, pick the changes you'd like to have made,
+          and click the "Go" button.
+        </p>
+      </div>
+      <div class="col-md-4">
+        <button class="btn btn-outline-info btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#about"
+          aria-expanded="false" aria-controls="about">More info</button>
+      </div>
+    </div>
+
+    <div id="about" class="row collapse">
+      <div class="card">
+        <div class="card-body">
+          <h2 class="card-title h4">About</h2>
+          <p>
+            The LXP Workflow Expediter takes in course exports from Harvard's
+            Learning Experience Platform (LXP), makes changes to them, and then
+            gives you back a new course tarball that you can import. It also provides
+            a spreadsheet showing your course structure down to the individual teaching
+            element level.
+          </p>
+          <p>
+            The Expediter works entirely client-side. When you "upload" a file,
+            it stays within your browser. We don't store your course file,
+            and no one else can access it. It was
+            created by Colin Fredericks at Harvard VPAL, and is available under
+            the MIT License.
+          </p>
+          <div class="text-center">
+            <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#about"
+              aria-expanded="false" aria-controls="about">Got it.</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container row">
+      <div class="row">
+        <div class="col-md-4">
+          <label class="filename form-label">Upload your file:<br />
+            <input type="file" id="input_tarball" class="form-control" />
+          </label>
+        </div>
+        <div class="col-md-4" style="margin: auto 0 auto 0; padding-top: 1.5em">
+          <button type="button" id="go" class="btn btn-primary" data-bs-toggle="modal"
+            data-bs-target="#confirmation_dialog_container" disabled>
+            Go
+          </button>
+          <a id="download_button" class="btn btn-secondary" style="pointer-events: none; display: none">
+            Download
+          </a>
+          <button id="working_button" class="btn btn-secondary" type="button" style="display: none" disabled>
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <span id="processing_status" role="status">Working...</span>
+          </button>
+          <br />
+          <div id="progress_container" class="progress" role="progressbar" style="margin-top: 0.25em"
+            aria-label="Basic example" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
+            <div id="progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 75%">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <h2>Overrides</h2>
+        <div class="col-md-4">
+          <ul class="list-unstyled form-check">
+            <li>
+              <label class="form-check-label"><input class="form-check-input" type="checkbox" id="just_spreadsheet"
+                  name="just_spreadsheet" value="just_spreadsheet" />Just give me the spreadsheet.</label>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+            data-bs-target="#panelsStayOpen-Access" aria-expanded="false" aria-controls="panelsStayOpen-Access">
+            <span class="h2">Access</span>
+            <span id="access-details" class="settings-details"></span>
+          </button>
+        </h2>
+        <div id="panelsStayOpen-Access" class="accordion-collapse collapse container">
+          <div class="accordion-body row">
+            <div class="col-md-4">
+              <h3>Locking</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label><input type="radio" class="form-check-input" id="lock" name="lock_unlock" value="lock" />
+                    Lock all sections</label>
+                </li>
+                <li>
+                  <label><input type="radio" class="form-check-input" id="unlock" name="lock_unlock" value="unlock" />
+                    Unlock all sections</label>
+                </li>
+                <li>
+                  <label><input type="radio" class="form-check-input" id="keep_locking" name="lock_unlock"
+                      value="no_change" checked />
+                    No change</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4">
+              <h3>Requirements</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="require"
+                      name="req_opt" value="require" />
+                    Require all sections</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="optional"
+                      name="req_opt" value="optional" />
+                    Make all sections optional</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="keep_req"
+                      name="req_opt" value="no_change" checked />
+                    No change</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4">
+              <h3>Videos</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="no_scrub"
+                      name="scrubbing" value="disable" />
+                    Disable video scrubbing</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="scrub_ok"
+                      name="scrubbing" value="enable" />
+                    Allow video scrubbing</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="keep_scrub"
+                      name="scrubbing" value="no_change" checked />
+                    No change</label>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+            data-bs-target="#panelsStayOpen-Sectioning" aria-expanded="false" aria-controls="panelsStayOpen-Sectioning">
+            <span class="h2">Sectioning</span>
+            <span id="section-details" class="settings-details"></span>
+          </button>
+        </h2>
+        <div id="panelsStayOpen-Sectioning" class="accordion-collapse collapse container">
+          <div class="accordion-body row">
+            <div class="col-md-4">
+              <h3>Scope</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <input class="form-check-input" type="radio" id="section_per_te" name="sectioning"
+                    value="section_per_te" />
+                  <label class="form-check-label" for="section_per_te">One section per TE</label>
+                </li>
+                <li>
+                  <input class="form-check-input" type="radio" id="section_per_page" name="sectioning"
+                    value="section_per_page" />
+                  <label class="form-check-label" for="section_per_page">One section per page</label>
+                </li>
+                <li>
+                  <input class="form-check-input" type="radio" id="keep_sectioning" name="sectioning" value="no_change"
+                    checked />
+                  <label class="form-check-label" for="keep_sectioning">No change</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4 text-muted">
+              <h3>
+                Combine <span style="font-size: small">(unimplemented)</span>
+              </h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input class="form-check-input" type="checkbox" id="video_intro"
+                      name="video_intro" value="video_intro" disabled />
+                    Put HTML before videos into the same section with the
+                    video</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input class="form-check-input" type="checkbox" id="video_credits"
+                      name="video_credits" value="video_credits" disabled />
+                    Put expandables after videos into the same section with
+                    the video</label>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+            data-bs-target="#panelsStayOpen-Output" aria-expanded="false" aria-controls="panelsStayOpen-Output">
+            <span class="h2">Output</span>
+            <span id="output-details" class="settings-details"></span>
+          </button>
+        </h2>
+        <div id="panelsStayOpen-Output" class="accordion-collapse collapse container">
+          <div class="accordion-body row">
+            <div class="col-md-4">
+              <h3>Mix-ins</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input class="form-check-input" type="checkbox" id="spreadsheet"
+                      name="include_spreadsheet" value="include_spreadsheet" checked />
+                    Include course spreadsheets</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4">
+              <h3>Cleaning</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input class="form-check-input" type="radio" id="clean" name="clean"
+                      value="clean" />
+                    Clean for import</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input class="form-check-input" type="radio" id="dont_clean"
+                      name="clean" value="dont_clean" checked />
+                    Don't clean</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4">
+              <h3>Testing</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input class="form-check-input" type="checkbox" id="just_test"
+                      name="just_test" value="just_test" />Just test the tar library</label>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  <footer class="container py-3">
+    <div class="row">
+      <p>Copyright © 2023 Colin Fredericks, President and Fellows of Harvard College. Available under the
+        <a href="https://mit-license.org/">MIT License</a>.
+      </p>
+    </div>
+  </footer>
+</body>
+
+</html>
