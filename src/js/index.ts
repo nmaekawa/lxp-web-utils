@@ -45,6 +45,10 @@ const human_readable_options: { [key: string]: string } = {
   required_optional: "Requirement",
   scrubbing: "Scrubbing",
   section_scope: "Sectioning",
+  qset_display: "Question display",
+  num_attempts: "Number of attempts",
+  pass_percent: "Passing percentage",
+  show_answers: "Show answers",
   spreadsheet: "Include course spreadsheet",
   test: "Testing",
 };
@@ -151,6 +155,12 @@ function getInputFile(event: Event): File {
  *  required_optional: "require" | "optional" | "no_change",\
  *  scrubbing: "disable" | "enable" | "no_change",\
  *  section_scope: "section_per_te" | "section_per_page" | "no_change",\
+ *  qset_display: "display_one" | "display_all" | "no_change",\
+ *  pass_percent: number,\
+ *  pass_percent_no_change: boolean,\
+ *  num_attempts: number,\
+ *  num_attempts_no_change: boolean,\
+ *  show_answers: "show_when_submitted" | "show_after_attempts" | "show_never" | "no_change",\
  *  clean: boolean,\
  *  spreadsheet: boolean (are we making a spreadsheet) \
  * }
@@ -525,7 +535,11 @@ function updateConfirmationDialog(input_file: File): void {
   let option_string = "<ul>";
   let option_list: string[] = [];
 
-  Object.keys(options).forEach((e, i) =>
+  Object.keys(options).forEach(function (e, i): void {
+    if (typeof human_readable_options[e] === "undefined") {
+      return;
+    }
+    // TODO: Handle numerical options better, especially -1
     option_list.push(
       String(
         "<strong>" +
@@ -534,8 +548,9 @@ function updateConfirmationDialog(input_file: File): void {
         options[e as keyof object]
       )
     )
+  }
   );
-  option_list.forEach((e, i) => (option_string += `<li>${e}</li>`));
+  option_list.forEach((e, i) => { (option_string += `<li>${e}</li>`) });
   option_string += "</ul>";
 
   let modal_body = document.getElementById("confirmation_dialog");
@@ -658,6 +673,10 @@ async function processFile(): Promise<void> {
     } else if (options.lock_unlock === "unlock") {
       json_files = disableVideoScrubbing(json_files, false);
       console.debug("Video scrubbing enabled");
+    }
+
+    if (options.pass_percent_no_change === false || options.num_attempts_no_change === false) {
+      json_files = await processQuestionSets(json_files, options);
     }
 
     // The LXP currently exports things that it itself cannot import.
@@ -811,6 +830,47 @@ async function processSections(
   }
 
   // Send back the updated json files
+  return json_files;
+}
+
+async function processQuestionSets(
+  json_files: { name: string; data_string: string; data: any[] }[],
+  options: {
+    pass_percent: number;
+    pass_percent_no_change: boolean;
+    num_attempts: number;
+    num_attempts_no_change: boolean;
+    show_answers: string;
+  }
+): Promise<{ name: string; data_string: string; data: any[] }[]> {
+  let activities = json_files.filter((e) => e.name.includes("activities"))[0];
+  let question_sets = activities.data.filter((a) => a.type === "CEK_QUESTION_SET" && !a.detached && !a.deleted_at);
+
+  // TODO: this whole section.
+
+  // if (options.show_answers === "show_after_attempts") {
+  //   question_sets.forEach(function (qset, i) {
+  //     qset.data.displayCorrectAnswers = "onAllowExhaust";
+  //   });
+  // }
+  // if (options.show_answers === "show_never") {
+  //   question_sets.forEach(function (qset, i) {
+  //     qset.data.displayCorrectAnswers = "never";
+  //   });
+  // }
+
+  // if (!options.num_attempts_no_change) {
+  //   question_sets.forEach(function (qset, i) {
+  //     qset.data.numberOfAttempts = options.num_attempts;
+  //   });
+  // }
+  // if (!options.pass_percent_no_change) {
+  //   question_sets.forEach(function (qset, i) {
+  //     qset.data.passingPercentage = options.pass_percent;
+  //   });
+  // }
+
+
   return json_files;
 }
 
