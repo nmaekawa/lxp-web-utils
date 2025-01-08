@@ -373,7 +373,6 @@ function updateOptionSummary(): void {
   }
 
   // Numerical things take a little extra checking.
-  console.log(options.pass_percent);
   qset_options += ", # Attempts: ";
   if (options.num_attempts_no_change) {
     qset_options += "no change";
@@ -837,10 +836,9 @@ async function processQuestionSets(
   json_files: { name: string; data_string: string; data: any[] }[],
   options: {
     pass_percent: number;
-    pass_percent_no_change: boolean;
     num_attempts: number;
-    num_attempts_no_change: boolean;
     show_answers: string;
+    qset_display: string;
   }
 ): Promise<{ name: string; data_string: string; data: any[] }[]> {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0];
@@ -848,28 +846,54 @@ async function processQuestionSets(
 
   // TODO: this whole section.
 
-  // if (options.show_answers === "show_after_attempts") {
-  //   question_sets.forEach(function (qset, i) {
-  //     qset.data.displayCorrectAnswers = "onAllowExhaust";
-  //   });
-  // }
-  // if (options.show_answers === "show_never") {
-  //   question_sets.forEach(function (qset, i) {
-  //     qset.data.displayCorrectAnswers = "never";
-  //   });
-  // }
+  // When do we show the answers?
+  if (options.show_answers === "show_when_submitted") {
+    question_sets.forEach(function (qset, i) {
+      qset.data.displayCorrectAnswers = "onSubmit";
+    });
+  }
+  if (options.show_answers === "show_after_attempts") {
+    question_sets.forEach(function (qset, i) {
+      qset.data.displayCorrectAnswers = "onAllowExhaust";
+    });
+  }
+  if (options.show_answers === "show_never") {
+    question_sets.forEach(function (qset, i) {
+      qset.data.displayCorrectAnswers = "never";
+    });
+  }
 
-  // if (!options.num_attempts_no_change) {
-  //   question_sets.forEach(function (qset, i) {
-  //     qset.data.numberOfAttempts = options.num_attempts;
-  //   });
-  // }
-  // if (!options.pass_percent_no_change) {
-  //   question_sets.forEach(function (qset, i) {
-  //     qset.data.passingPercentage = options.pass_percent;
-  //   });
-  // }
+  // Display one question at a time or all of them?
+  if (options.qset_display === "display_one") {
+    question_sets.forEach(function (qset, i) {
+      qset.data.displayQuestions = "one";
+    });
+  }
+  if (options.qset_display === "display_all") {
+    question_sets.forEach(function (qset, i) {
+      qset.data.displayQuestions = "all";
+    });
+  }
 
+  // Are we changing the number of attemtps and passing percentage?
+  if (options.num_attempts > 0) {
+    question_sets.forEach(function (qset, i) {
+      qset.data.numberOfAttempts = options.num_attempts;
+    });
+  }
+  if (options.pass_percent > 0) {
+    question_sets.forEach(function (qset, i) {
+      qset.data.passingPercentage = options.pass_percent;
+    });
+  }
+
+  // Write the fixed question sets back to the activities variable.
+  question_sets.forEach(function (qset, i) {
+    let index = activities.data.findIndex((a) => a.id === qset.id);
+    activities.data[index] = qset;
+  });
+
+  activities.data_string = JSON.stringify(activities.data, null, 2);
 
   return json_files;
 }
@@ -1144,6 +1168,8 @@ async function cleanCourse(
     .data;
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
   await updateStatus("Cleaning course");
+
+  // TODO: Report what's been cleaned.
 
   // Clear out temporary position values.
   for (let act of activities) {
