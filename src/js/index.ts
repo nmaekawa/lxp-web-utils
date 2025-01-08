@@ -701,7 +701,7 @@ async function processFile(): Promise<void> {
 
   // Create the course spreadsheet as a csv.
   if (options.spreadsheet) {
-    course_sheet = createCourseSheet(json_files);
+    course_sheet = await createCourseSheet(json_files);
   }
 
   // Make the donwload links

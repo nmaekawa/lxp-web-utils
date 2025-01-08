@@ -15,13 +15,12 @@ interface CourseObject {
  * @param json_files
  * @returns A CSV spreadsheet showing the course's contents
  */
-export function createCourseSheet(
+export async function createCourseSheet(
   json_files: {
     name: string;
-    data_string: string;
     data: any[];
   }[]
-): string {
+): Promise<string> {
   // The flattened course is an array of objects with strings as keys.
   // We'll convert this to a CSV string.
   // Include typescript types.
