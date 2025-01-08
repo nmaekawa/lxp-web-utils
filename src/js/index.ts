@@ -617,35 +617,38 @@ async function processFile(): Promise<void> {
   // Get the individual json files from the tarball
   // (We're not altering any other files.)
   await updateStatus("Parsing JSON");
-  let json_files = [];
+  let json_text = [];
   for await (const f of tar_content.entries) {
     if (f.fileName.includes("/._")) {
       continue;
     }
     if (f.fileName.includes(".json") && f.typeFlag === "0") {
       const filename = f.fileName;
-      json_files.push({
+      json_text.push({
         name: filename,
         data_string: f.getContentAsText(),
-        data: [],
       });
     }
   }
 
-  // The data attribute will be an explicit "any" later on, because there are
+  // The data attribute has an explicit "any" type, because there are
   // multiple types of JSON files that we'll be working with.
+  let json_files: any = [];
 
   // Parse all the JSON in the files
-  json_files.forEach((f) => {
+  json_text.forEach((f) => {
     try {
-      f.data = JSON.parse(f.data_string);
+      json_files.push({
+        name: f.name,
+        data: JSON.parse(f.data_string),
+      });
     } catch (e) {
       console.error("Could not parse JSON for file", f.name);
       console.error(e);
     }
   });
 
-  let repo_file = json_files.filter((e) => e.name === "repository.json");
+  let repo_file = json_files.filter((e: any) => e.name === "repository.json");
   if (repo_file.length === 0) {
     console.error("Could not find repository.json");
     return;
@@ -803,7 +806,7 @@ async function getTarFiles(): Promise<Archive> {
  * @returns the revised JSON files
  */
 async function processSections(
-  json_files: { name: string; data_string: string; data: any[] }[],
+  json_files: { name: string; data: any[] }[],
   options: {
     lock_unlock: string;
     required_optional: string;
@@ -811,7 +814,7 @@ async function processSections(
     clean: boolean;
     spreadsheet: boolean;
   }
-): Promise<{ name: string; data_string: string; data: any[] }[]> {
+): Promise<{ name: string; data: any[] }[]> {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0];
   await updateStatus("Processing sections");
 
@@ -831,7 +834,6 @@ async function processSections(
       }
     }
   }
-  activities.data_string = JSON.stringify(activities.data, null, 2);
 
   if (options.section_scope !== "no_change") {
     json_files = await sectionCourse(json_files, options.section_scope);
@@ -842,14 +844,14 @@ async function processSections(
 }
 
 async function processQuestionSets(
-  json_files: { name: string; data_string: string; data: any[] }[],
+  json_files: { name: string; data: any[] }[],
   options: {
     pass_percent: number;
     num_attempts: number;
     show_answers: string;
     qset_display: string;
   }
-): Promise<{ name: string; data_string: string; data: any[] }[]> {
+): Promise<{ name: string; data: any[] }[]> {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0];
   let question_sets = activities.data.filter((a) => a.type === "CEK_QUESTION_SET" && !a.detached && !a.deleted_at);
 
@@ -900,8 +902,6 @@ async function processQuestionSets(
     activities.data[index] = qset;
   });
 
-  activities.data_string = JSON.stringify(activities.data, null, 2);
-
   return json_files;
 }
 
@@ -914,9 +914,9 @@ async function processQuestionSets(
  * @returns
  */
 async function sectionCourse(
-  json_files: { name: string; data_string: string; data: any[] }[],
+  json_files: { name: string; data: any[] }[],
   section_scope: string
-): Promise<{ name: string; data_string: string; data: any[] }[]> {
+): Promise<{ name: string; data: any[] }[]> {
   //  Notes:
   //   - Every TE already has its own individual Invisible, so we can work with those
   //     instead of having to work with actual TEs.
@@ -1136,11 +1136,10 @@ async function sectionCourse(
 function disableVideoScrubbing(
   json_files: {
     name: string;
-    data_string: string;
     data: any[];
   }[],
   scrub = true
-): { name: string; data_string: string; data: any[] }[] {
+): { name: string; data: any[] }[] {
   // If we're locking and requiring the course, let's make every video "cannot skip ahead".
   let elements = json_files.filter((e) => e.name.includes("element"))[0];
   elements.data.forEach((e) => {
@@ -1163,12 +1162,10 @@ function disableVideoScrubbing(
 async function cleanCourse(
   json_files: {
     name: string;
-    data_string: string;
     data: any[];
   }[]
 ): Promise<{
   name: string;
-  data_string: string;
   data: any[];
 }[]> {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0]
@@ -1241,13 +1238,12 @@ async function cleanCourse(
     return !empty_section_ids.includes(a.id);
   });
 
-  // Replace json strings with stringified data
   json_files.forEach((f) => {
     if (f.name.includes("activities")) {
-      f.data_string = JSON.stringify(non_empty_activities, null, 2);
+      f.data = non_empty_activities;
     }
     if (f.name.includes("elements")) {
-      f.data_string = JSON.stringify(elem_no_missing_links, null, 2);
+      f.data = elem_no_missing_links;
     }
   });
 
@@ -1265,7 +1261,7 @@ async function cleanCourse(
  */
 async function writeTarFile(
   tar_content: Archive,
-  json_files: { name: string; data_string: string; data: any[] }[]
+  json_files: { name: string; data: any[] }[]
 ): Promise<Blob> {
   let new_tarball = new Archive();
   await updateStatus("Assembling files");
@@ -1284,8 +1280,11 @@ async function writeTarFile(
       continue;
     }
     if (course_structure_files.includes(f.fileName)) {
-      const file_string = json_files.filter((e) => e.name === f.fileName)[0]
-        .data_string;
+      const file_string = JSON.stringify(
+        json_files.filter((e) => e.name === f.fileName)[0].data,
+        null,
+        2
+      );
       new_tarball.addTextFile(f.fileName, file_string);
     } else {
       if (f.fileSize === 0) {
