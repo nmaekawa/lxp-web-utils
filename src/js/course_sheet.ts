@@ -282,6 +282,17 @@ function getContentSample(te: CourseObject): string {
     te_content_sample = te.data.question;
   } else if (te.type.includes("IMAGE")) {
     te_content_sample = "Alt text: " + te.meta.alt;
+  } else if(te.type.includes("PDF")) {
+    te_content_sample = "PDF - no title given";
+    if ("url" in te.data.assets) {
+      // Normally a long random string, ___, and the filename.
+      if (te.data.assets.url != "") {
+        te_content_sample = "PDF: " + te.data.assets.url.split("___").splice(1,).join();
+        if(te_content_sample === "") {
+          te_content_sample = te.data.assets.url;
+        }
+      }
+    }
   } else if (te.type.includes("CDA_VIDEO")) {
     te_content_sample = "Video - no title given";
     if ("title" in te.meta) {
