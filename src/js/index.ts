@@ -33,6 +33,7 @@ const default_checkboxes: { [key: string]: boolean | number } = {
   num_attempts_no_change: true,
   pass_percent: -1,
   pass_percent_no_change: true,
+  show_no_change: true,
   spreadsheet: true,
   clean: false,
   dont_clean: true,
@@ -86,9 +87,17 @@ document.addEventListener("DOMContentLoaded", () => {
   for (let option in default_checkboxes) {
     let element = document.getElementById(option) as HTMLInputElement;
     if (element) {
-      element.checked = !!default_checkboxes[option];
-    } else {
-      console.debug("Could not find element with id=", option);
+      if (element.type === "checkbox" || element.type === "radio") {
+        element.checked = !!default_checkboxes[option];
+      } else if (element.type === "number" && typeof default_checkboxes[option] === "number") {
+        if (default_checkboxes[option] >= 0) {
+          element.value = String(default_checkboxes[option]);
+        } else {
+          element.value = "";
+        }
+      } else {
+        console.debug("Could not find element with id=", option);
+      }
     }
   }
   const file_input_element = document.getElementById(
@@ -844,8 +853,6 @@ async function processQuestionSets(
   let activities = json_files.filter((e) => e.name.includes("activities"))[0];
   let question_sets = activities.data.filter((a) => a.type === "CEK_QUESTION_SET" && !a.detached && !a.deleted_at);
 
-  // TODO: this whole section.
-
   // When do we show the answers?
   if (options.show_answers === "show_when_submitted") {
     question_sets.forEach(function (qset, i) {
@@ -883,7 +890,7 @@ async function processQuestionSets(
   }
   if (options.pass_percent > 0) {
     question_sets.forEach(function (qset, i) {
-      qset.data.passingPercentage = options.pass_percent;
+      qset.data.minimumPassingPercentage = options.pass_percent;
     });
   }
 
