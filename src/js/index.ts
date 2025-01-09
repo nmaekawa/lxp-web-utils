@@ -401,17 +401,6 @@ function updateOptionSummary(): void {
   }
 
   // Numerical things take a little extra checking.
-  qset_options += ", # Attempts: ";
-  if (options.num_attempts_no_change) {
-    qset_options += "no change";
-  } else if (options.num_attempts <= 0 || isNaN(Number(options.num_attempts))) {
-    qset_options += "<span class='changed-setting'>unlimited</span>";
-  } else if (options.num_attempts > 10) {
-    qset_options += "<span class='bad-setting'>" + String(options.num_attempts) + "</span>";
-  }
-  else {
-    qset_options += "<span class='changed-setting'>" + String(options.num_attempts) + "</span>";
-  }
   qset_options += ", Passing: ";
   if (options.pass_percent_no_change) {
     qset_options += "no change";
@@ -422,6 +411,17 @@ function updateOptionSummary(): void {
   }
   else {
     qset_options += "<span class='changed-setting'>" + String(options.pass_percent) + "%</span>";
+  }
+  qset_options += ", # Attempts: ";
+  if (options.num_attempts_no_change) {
+    qset_options += "no change";
+  } else if (options.num_attempts <= 0 || isNaN(Number(options.num_attempts))) {
+    qset_options += "<span class='changed-setting'>unlimited</span>";
+  } else if (options.num_attempts > 10) {
+    qset_options += "<span class='bad-setting'>" + String(options.num_attempts) + "</span>";
+  }
+  else {
+    qset_options += "<span class='changed-setting'>" + String(options.num_attempts) + "</span>";
   }
 
   qset_options += ", Show answers: ";
