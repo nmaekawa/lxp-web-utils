@@ -19,6 +19,8 @@ export async function processSections(
         section_scope: string;
         clean: boolean;
         spreadsheet: boolean;
+        video_credits: boolean;
+        video_intro: boolean;
     }
 ): Promise<{ name: string; data: any[] }[]> {
     let activities = json_files.filter((e) => e.name.includes("activities"))[0];
@@ -42,7 +44,12 @@ export async function processSections(
     }
 
     if (options.section_scope !== "no_change") {
-        json_files = await sectionCourse(json_files, options.section_scope);
+        json_files = await sectionCourse(
+            json_files,
+            options.section_scope,
+            options.video_credits,
+            options.video_intro
+        );
     }
 
     // Send back the updated json files
@@ -121,7 +128,9 @@ export async function processQuestionSets(
  */
 export async function sectionCourse(
     json_files: { name: string; data: any[] }[],
-    section_scope: string
+    section_scope: string,
+    video_credits: boolean,
+    video_intro: boolean,
 ): Promise<{ name: string; data: any[] }[]> {
     //  Notes:
     //   - Every TE already has its own individual Invisible, so we can work with those
@@ -309,6 +318,10 @@ export async function sectionCourse(
     let non_empty_activities = activities.filter(function (a) {
         return !empty_invisible_ids.includes(a.id);
     });
+
+    // If we're moving HTML TEs and Expandable containers, do that here
+    // so that the sections get wiped in the next step.
+    
 
     // Keep only SECTIONs that have child activities.
     let sections_with_children = activities

@@ -51,6 +51,8 @@ const default_settings: { [key: string]: boolean | number } = {
   show_no_change: true,
   spreadsheet: true,
   unlock: false,
+  video_credits: false,
+  video_intro: false,
 };
 
 const human_readable_options: { [key: string]: string } = {
@@ -203,6 +205,8 @@ function getInputFile(event: Event): File {
  *  section_scope: "section_per_te" | "section_per_page" | "no_change",\
  *  show_answers: "show_when_submitted" | "show_after_attempts" | "show_never" | "no_change",\
  *  spreadsheet: boolean (are we making a spreadsheet) \
+ *  video_credits: boolean (are we moving post-video Expand containers) \
+ *  video_intro: boolean (are we moving pre-video HTML TEs) \
  * }
  *
  * @returns The options from the form
@@ -223,6 +227,8 @@ function getOptions(): {
   show_answers: string;
   spreadsheet: boolean;
   test: boolean;
+  video_credits: boolean;
+  video_intro: boolean;
 } {
   let download_new_course = true;
   let just_test_value = false;
@@ -250,6 +256,13 @@ function getOptions(): {
     'input[name="sectioning"]:checked'
   ) as HTMLInputElement;
   let section_scope_value = section_scope.value;
+
+  // Are we doing some heuristics to try to get video
+  // intros and credits next to the video?
+  let video_intro = document.getElementById("video_intro") as HTMLInputElement;
+  let video_intro_value = video_intro.checked;
+  let video_credits = document.getElementById("video_credits") as HTMLInputElement;
+  let video_credits_value = video_credits.checked;
 
   // How many attempts are allowed?
   let qset_display = document.querySelector(
@@ -321,6 +334,8 @@ function getOptions(): {
     section_scope_value = "no_change";
     show_answers_value = "no_change";
     include_course_spreadsheet_value = true;
+    video_credits_value = false;
+    video_intro_value = false;
   }
 
   let options = {
@@ -339,6 +354,8 @@ function getOptions(): {
     show_answers: show_answers_value,
     spreadsheet: include_course_spreadsheet_value,
     test: just_test_value,
+    video_credits: video_credits_value,
+    video_intro: video_intro_value,
   };
   return options;
 }
