@@ -11,7 +11,7 @@ import "../css/index.css";
 // TODO list:
 // Handle INVISIBLE_CONTAINERs better in sectioning. (or at all)
 
-const default_checkboxes: { [key: string]: boolean | number } = {
+const default_settings: { [key: string]: boolean | number } = {
   just_spreadsheet: false,
   just_test: false,
   lock: false,
@@ -75,23 +75,28 @@ const progress_stage: { [key: string]: number } = {
  */
 document.addEventListener("DOMContentLoaded", () => {
   console.debug("DOM loaded");
+
   updateStatus("Starting");
-
-  let input_file: File;
-
   makeConfirmationDialog();
+  resetSettings();
+  addListeners();  // <-- flow passes to the go button from here
+  updateOptionSummary();
+});
 
-  // Explicitly reset some of the interface in case the user reloads.
-  const go_button = document.getElementById("go");
 
-  for (let option in default_checkboxes) {
+/** 
+ * Explicitly reset some of the interface in case the user reloads.
+ */
+function resetSettings(): void {
+  
+  for (let option in default_settings) {
     let element = document.getElementById(option) as HTMLInputElement;
     if (element) {
       if (element.type === "checkbox" || element.type === "radio") {
-        element.checked = !!default_checkboxes[option];
-      } else if (element.type === "number" && typeof default_checkboxes[option] === "number") {
-        if (default_checkboxes[option] >= 0) {
-          element.value = String(default_checkboxes[option]);
+        element.checked = !!default_settings[option];
+      } else if (element.type === "number" && typeof default_settings[option] === "number") {
+        if (default_settings[option] >= 0) {
+          element.value = String(default_settings[option]);
         } else {
           element.value = "";
         }
@@ -100,18 +105,28 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   }
+}
+
+/** 
+ * Puts listeners on the file input, form elements, and go button.
+ * Application flow starts at the go button.
+ */
+function addListeners(): void {
+
+  let input_file: File;
+  const go_button = document.getElementById("go");
+  const form_controls = document.querySelectorAll("input, select");
   const file_input_element = document.getElementById(
     "input_tarball"
   ) as HTMLInputElement;
-  if (!go_button || !file_input_element) {
+
+  if (!go_button || !form_controls || !file_input_element) {
     console.error("Missing some basic HTML - check the index.html file");
     return;
   }
   file_input_element.value = "";
 
   // Any time a form control is changed, update the settings summaries
-  updateOptionSummary();
-  const form_controls = document.querySelectorAll("input, select");
   form_controls.forEach((e) => {
     e.addEventListener("change", () => {
       updateOptionSummary();
@@ -125,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // When they glick the go button, flow passes to the confirmation dialog
-  go_button?.addEventListener("click", () => {
+  go_button.addEventListener("click", () => {
     console.debug("Go button clicked");
     if (!input_file) {
       console.error("No file uploaded");
@@ -133,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateConfirmationDialog(input_file);
     }
   });
-});
+}
 
 /**
  * Gets the file from the input element
