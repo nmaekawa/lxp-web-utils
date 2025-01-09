@@ -177,6 +177,7 @@ function getInputFile(event: Event): File {
  * { \
  *  clean: boolean,\
  *  download_new_course: boolean,\
+ *  just_test_value: boolean,\
  *  lock_unlock: "lock" | "unlock" | "no_change",\
  *  num_attempts: number,\
  *  num_attempts_no_change: boolean,\
@@ -195,6 +196,7 @@ function getInputFile(event: Event): File {
 function getOptions(): {
   clean: boolean;
   download_new_course: boolean;
+  just_test_value: boolean;
   lock_unlock: string;
   num_attempts: number;
   num_attempts_no_change: boolean;
@@ -291,35 +293,36 @@ function getOptions(): {
   ) as HTMLInputElement;
   let just_test = document.getElementById("just_test") as HTMLInputElement;
   if (just_spreadsheet.checked || just_test.checked) {
+    clean_value = false;
     download_new_course = false;
+    just_test_value = just_test.checked;
     lock_unlock_value = "no_change";
+    num_attempts_value = -1;
+    num_attempts_no_change = true;
+    pass_percent_value = -1;
+    pass_percent_no_change = true;
+    qset_display_value = "no_change";
     required_optional_value = "no_change";
     scrubbing_value = "no_change";
     section_scope_value = "no_change";
-    qset_display_value = "no_change";
-    pass_percent_value = -1;
-    pass_percent_no_change = true;
-    num_attempts_value = -1;
-    num_attempts_no_change = true;
     show_answers_value = "no_change";
-    clean_value = false;
     include_course_spreadsheet_value = true;
-    just_test_value = just_test.checked;
   }
 
   let options = {
+    clean: clean_value,
     download_new_course: download_new_course,
+    just_test_value: just_test.checked,
     lock_unlock: lock_unlock_value,
+    num_attempts: num_attempts_value,
+    num_attempts_no_change: num_attempts_no_change,
+    pass_percent: pass_percent_value,
+    pass_percent_no_change: pass_percent_no_change,
+    qset_display: qset_display_value,
     required_optional: required_optional_value,
     scrubbing: scrubbing_value,
     section_scope: section_scope_value,
-    qset_display: qset_display_value,
-    pass_percent: pass_percent_value,
-    pass_percent_no_change: pass_percent_no_change,
-    num_attempts: num_attempts_value,
-    num_attempts_no_change: num_attempts_no_change,
     show_answers: show_answers_value,
-    clean: clean_value,
     spreadsheet: include_course_spreadsheet_value,
     test: just_test_value,
   };
