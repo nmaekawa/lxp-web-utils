@@ -379,8 +379,6 @@ export async function cleanCourse(
     let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
     await updateStatus("Cleaning course");
 
-    // TODO: Report what's been cleaned.
-
     // Clear out temporary position values.
     for (let act of activities) {
         try {
@@ -399,7 +397,6 @@ export async function cleanCourse(
     // If there are TEs linked to a TE that doesn't exist, that causes issues too.
     // Unfortunately, we can't fix the links and they break on import.
     // Toss anything with refs.linked present (it's an array).
-    // TODO: Replace with placeholders instead of just removing them.
     let elem_no_missing_links = elem_no_output_detached.filter((e) => {
         try {
             if (e.refs.linked.length > 0) {

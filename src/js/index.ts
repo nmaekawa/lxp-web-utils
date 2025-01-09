@@ -13,8 +13,18 @@ import "bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../css/index.css";
 
+/////////////////////////////////////////
+// Package setup:
+// This file handles all the user interaction.
+// course_sheet.ts handles creating the CSV.
+// batch_ops.ts handles the actual course manipulation.
+/////////////////////////////////////////
+
 // TODO list:
-// Handle INVISIBLE_CONTAINERs better in sectioning. (or at all)
+// Handle INVISIBLE_CONTAINERs better in sectioning.
+// Present numerical options better in updateConfirmationDialog(), especially -1
+// Report what's been cleaned in cleanCourse()
+// Replace removed items with placeholders in cleanCourse()
 
 const default_settings: { [key: string]: boolean | number } = {
   just_spreadsheet: false,
@@ -575,7 +585,6 @@ function updateConfirmationDialog(input_file: File): void {
     if (typeof human_readable_options[e] === "undefined") {
       return;
     }
-    // TODO: Handle numerical options better, especially -1
     option_list.push(
       String(
         "<strong>" +
