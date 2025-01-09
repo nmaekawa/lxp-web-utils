@@ -175,35 +175,36 @@ function getInputFile(event: Event): File {
  * Reads the form to get options for how to handle the course.
  * The options object looks like this:\
  * { \
+ *  clean: boolean,\
+ *  download_new_course: boolean,\
  *  lock_unlock: "lock" | "unlock" | "no_change",\
+ *  num_attempts: number,\
+ *  num_attempts_no_change: boolean,\
+ *  pass_percent: number,\
+ *  pass_percent_no_change: boolean,\
+ *  qset_display: "display_one" | "display_all" | "no_change",\
  *  required_optional: "require" | "optional" | "no_change",\
  *  scrubbing: "disable" | "enable" | "no_change",\
  *  section_scope: "section_per_te" | "section_per_page" | "no_change",\
- *  qset_display: "display_one" | "display_all" | "no_change",\
- *  pass_percent: number,\
- *  pass_percent_no_change: boolean,\
- *  num_attempts: number,\
- *  num_attempts_no_change: boolean,\
  *  show_answers: "show_when_submitted" | "show_after_attempts" | "show_never" | "no_change",\
- *  clean: boolean,\
  *  spreadsheet: boolean (are we making a spreadsheet) \
  * }
  *
  * @returns The options from the form
  */
 function getOptions(): {
+  clean: boolean;
   download_new_course: boolean;
   lock_unlock: string;
+  num_attempts: number;
+  num_attempts_no_change: boolean;
+  pass_percent: number;
+  pass_percent_no_change: boolean;
+  qset_display: string;
   required_optional: string;
   scrubbing: string;
   section_scope: string;
-  qset_display: string;
-  pass_percent: number;
-  pass_percent_no_change: boolean;
-  num_attempts: number;
-  num_attempts_no_change: boolean;
   show_answers: string;
-  clean: boolean;
   spreadsheet: boolean;
   test: boolean;
 } {
