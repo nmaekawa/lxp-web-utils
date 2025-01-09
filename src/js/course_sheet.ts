@@ -5,7 +5,7 @@ import * as papa from "papaparse";
 
 // Courseware objects (Teaching Elements and containers) are
 // JSON objects that can have a variety of structures.
-interface CourseObject {
+export interface CourseObject {
   [key: string]: any;
 }
 
