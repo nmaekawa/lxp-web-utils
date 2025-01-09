@@ -88,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
  * Explicitly reset some of the interface in case the user reloads.
  */
 function resetSettings(): void {
-  
+
   for (let option in default_settings) {
     let element = document.getElementById(option) as HTMLInputElement;
     if (element) {
@@ -351,6 +351,7 @@ function updateOptionSummary(): void {
   output_span.textContent = "";
   qset_span.textContent = "";
 
+  // Locking row
   let access_options = "Locking: ";
   if (options.lock_unlock === "lock") {
     access_options += "<span class='changed-setting'>lock</span>, ";
@@ -377,6 +378,7 @@ function updateOptionSummary(): void {
   }
   access_span.innerHTML = access_options;
 
+  // Scope row
   let section_options = "Scope: ";
   if (options.section_scope === "section_per_te") {
     section_options +=
@@ -400,6 +402,7 @@ function updateOptionSummary(): void {
     qset_options += "no change";
   }
 
+  // Passing row
   // Numerical things take a little extra checking.
   qset_options += ", Passing: ";
   if (options.pass_percent_no_change) {
@@ -436,12 +439,7 @@ function updateOptionSummary(): void {
   }
   qset_span.innerHTML = qset_options;
 
-
-  // qset_display: string;
-  // pass_percent: number;
-  // num_attempts: number;
-  // show_answers: string;
-
+  // Output row
   let output_options = "Output: ";
   if (options.clean) {
     output_options += "<span class='changed-setting'>Clean course</span>, ";
@@ -456,6 +454,8 @@ function updateOptionSummary(): void {
 
 /**
  * Update the "Working" button to show what stage we're in.
+ * 
+ * @param stage The stage we're in. See progress_stage constant for options.
  */
 async function updateStatus(stage: string) {
   let progress_container = document.getElementById("progress_container");
@@ -558,6 +558,10 @@ function updateConfirmationDialog(input_file: File): void {
   let sillybytes = Math.round((input_file.size / 1024 / 1024) * 100);
   let megabytes = String(sillybytes / 100) + " MB";
 
+  if (input_file.size > 1000000000) {
+    megabytes = megabytes + ". This is a very large course. It's gonna take a while. It might hang your browser window"
+  }
+
   let options = getOptions();
   let option_string = "<ul>";
   let option_list: string[] = [];
@@ -633,39 +637,7 @@ async function processFile(): Promise<void> {
     return;
   }
 
-  // Get the individual json files from the tarball
-  // (We're not altering any other files.)
-  await updateStatus("Parsing JSON");
-  let json_text = [];
-  for await (const f of tar_content.entries) {
-    if (f.fileName.includes("/._")) {
-      continue;
-    }
-    if (f.fileName.includes(".json") && f.typeFlag === "0") {
-      const filename = f.fileName;
-      json_text.push({
-        name: filename,
-        data_string: f.getContentAsText(),
-      });
-    }
-  }
-
-  // The data attribute has an explicit "any" type, because there are
-  // multiple types of JSON files that we'll be working with.
-  let json_files: any = [];
-
-  // Parse all the JSON in the files
-  json_text.forEach((f) => {
-    try {
-      json_files.push({
-        name: f.name,
-        data: JSON.parse(f.data_string),
-      });
-    } catch (e) {
-      console.error("Could not parse JSON for file", f.name);
-      console.error(e);
-    }
-  });
+  let json_files = await parseJson(tar_content, options);
 
   let repo_file = json_files.filter((e: any) => e.name === "repository.json");
   if (repo_file.length === 0) {
@@ -733,6 +705,51 @@ async function processFile(): Promise<void> {
 }
 
 /**
+ * Takes in the content from the tarball, gives us back something more usable.
+ * @param tar_content 
+ * @param options 
+ * @returns an array of objects with the name of the file and the parsed JSON data.
+ */
+async function parseJson(tar_content: Archive, options: object): Promise<{ name: string; data: any }[]> {
+
+  // Get the individual json files from the tarball
+  // (We're not altering any other files.)
+  await updateStatus("Parsing JSON");
+  let json_text = [];
+  for await (const f of tar_content.entries) {
+    if (f.fileName.includes("/._")) {
+      continue;
+    }
+    if (f.fileName.includes(".json") && f.typeFlag === "0") {
+      const filename = f.fileName;
+      json_text.push({
+        name: filename,
+        data_string: f.getContentAsText(),
+      });
+    }
+  }
+
+  // The data attribute has an explicit "any" type, because there are
+  // multiple types of JSON files that we'll be working with.
+  let json_files: any = [];
+
+  // Parse all the JSON in the files
+  json_text.forEach((f) => {
+    try {
+      json_files.push({
+        name: f.name,
+        data: JSON.parse(f.data_string),
+      });
+    } catch (e) {
+      console.error("Could not parse JSON for file", f.name);
+      console.error(e);
+    }
+  });
+
+  return json_files;
+}
+
+/**
  * This takes in the file, unzips it, untars it,
  * and then literally just tars and zips it back up again.
  *
@@ -772,10 +789,6 @@ async function testFile(): Promise<void> {
       }
     }
   }
-
-  // for (const g of new_tarball.entries) {
-  //   console.debug(g.fileName);
-  // }
 
   // Re-gzip the file
   let tarball_uint8 = new_tarball.toUint8Array();
