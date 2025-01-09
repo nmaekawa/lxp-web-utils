@@ -2,6 +2,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { updateStatus } from "./index";
+import { CourseObject } from "./course_sheet";
 
 /**
  * Handles all locking/unlocking and required/optional settings.
@@ -320,8 +321,116 @@ export async function sectionCourse(
   });
 
   // If we're moving HTML TEs and Expandable containers, do that here
-  // so that the sections get wiped in the next step.
+  // so that empty sections get wiped in the next step.
+  if (video_credits || video_intro) {
 
+    let sections: CourseObject[] = [];
+    let invisibles_and_friends: CourseObject[] = [];
+    let tes: CourseObject[] = [];
+    pages.forEach(function (p) {
+      // We're going to move down the page in order of position.
+      // There are surprisingly many parts to this, and we have to make
+      // sure they're in position order at each step.
+
+      let section_containers = activities.filter(
+        (a) => a.parent_id == p.id && a.type === "SECTION_CONTAINER"
+      );
+      if (!section_containers) { return []; } // No section containers means no TEs, we're done.
+      section_containers.sort(function (a, b) {
+        return a.position - b.position;
+      });
+
+      for (let i = 0; i < section_containers.length; i++) {
+        // Get sections within this section container.
+        let local_sections = activities.filter(function (s: CourseObject, i) {
+          return s.parent_id == section_containers[i].id;
+        });
+        // Sort them by position.
+        local_sections.sort(function (a, b) { return a.position - b.position; });
+        // Push these in order
+        sections = sections.concat(local_sections);
+      }
+      if (sections.length === 0) { return []; }
+
+      // Sections contain Invisibles, Question Sets, Expandables, and more stuff in the future.
+      for (let j = 0; j < sections.length; j++) {
+        let local_invisibles = activities.filter(
+          (a) => a.parent_id == sections[j].id && a.type === "INVISIBLE_CONTAINER"
+        );
+        local_invisibles.sort(function (a, b) { return a.position - b.position; });
+        invisibles_and_friends = invisibles_and_friends.concat(local_invisibles);
+      }
+      if (invisibles_and_friends.length === 0) { return []; }
+
+      for (let k = 0; k < invisibles_and_friends.length; k++) {
+        let local_tes = elements.filter(
+          (e) => e.activity_id == invisibles_and_friends[k].id
+        );
+        local_tes.sort(function (a, b) { return a.position - b.position; });
+        tes = tes.concat(local_tes);
+      }
+
+    });
+
+    // In each section
+    for (let i = 0; i < sections.length; i++) {
+      // Look at each invisible (or equivalent) in that section
+      for (let j = 0; j < invisibles_and_friends.length; j++) {
+        if (invisibles_and_friends[j].parent_id !== sections[i].id) {
+          continue;
+        }
+        // Is there just one invisible in this section?
+        let local_invisibles = invisibles_and_friends.filter((a) => a.parent_id === sections[i].id);
+        if (local_invisibles.length !== 1) {
+          continue;
+        }
+        // Is there just one TE in that invisible?
+        let local_tes = tes.filter((t) => t.activity_id === invisibles_and_friends[j].id);
+        if (local_tes.length !== 1) {
+          continue;
+        }
+        // Is it a video TE?
+        if (!local_tes[0].type.contains("VIDEO")) {
+          continue;
+        }
+        // The positions of the invisibles here will be 1,2,3, just to make it simple.
+        invisibles_and_friends[j].position = 2;
+        if (video_intro) {
+          // Is there a previous section?
+          if (i === 0) {
+            continue;
+          }
+          let previous_section = sections[i - 1];
+          // Is it just one HTML TE?
+          let previous_invisibles = invisibles_and_friends.filter((a) => a.parent_id === previous_section.id);
+          if (previous_invisibles.length === 1) {
+            let previous_tes = tes.filter((t) => t.activity_id === previous_invisibles[0].id);
+            if (previous_tes.length === 1 && previous_tes[0].type.contains("HTML")) {
+              // Move the invisible for the HTML TE out of the previous section and into the current one.
+              non_empty_activities.find((a) => a.id === previous_invisibles[0].id).parent_id = sections[i].id;
+            }
+          }
+          previous_invisibles[0].position = 1;
+        }
+        if (video_credits) {
+          // Is there a next section?
+          if (i === sections.length - 1) {
+            continue;
+          }
+          let next_section = sections[i + 1];
+          // Is it just one Expandable container?
+          let next_invisibles = invisibles_and_friends.filter((a) => a.parent_id === next_section.id);
+          if (next_invisibles.length === 1) {
+            if (next_invisibles[0].type === "EXPAND_CONTAINER") {
+              // Move the Expandable container out of the next section and into the current one.
+              non_empty_activities.find((a) => a.id === next_invisibles[0].id).parent_id = sections[i].id;
+            }
+          }
+          next_invisibles[0].position = 3;
+        }
+      }
+    }
+  }
 
   // Keep only SECTIONs that have child activities.
   let sections_with_children = activities
@@ -344,6 +453,7 @@ export async function sectionCourse(
 
   return await cleanCourse(json_files);
 }
+
 
 /**
  * Makes it so you can't fast-forward through videos.
