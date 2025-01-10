@@ -44,7 +44,11 @@ export async function processSections(
     }
   }
 
-  if (options.section_scope !== "no_change") {
+  if (
+    options.section_scope !== "no_change" ||
+    options.video_credits ||
+    options.video_intro
+  ) {
     json_files = await sectionCourse(
       json_files,
       options.section_scope,
@@ -67,7 +71,9 @@ export async function processQuestionSets(
   }
 ): Promise<{ name: string; data: any[] }[]> {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0];
-  let question_sets = activities.data.filter((a) => a.type === "CEK_QUESTION_SET" && !a.detached && !a.deleted_at);
+  let question_sets = activities.data.filter(
+    (a) => a.type === "CEK_QUESTION_SET" && !a.detached && !a.deleted_at
+  );
 
   // When do we show the answers?
   if (options.show_answers === "show_when_submitted") {
@@ -131,7 +137,7 @@ export async function sectionCourse(
   json_files: { name: string; data: any[] }[],
   section_scope: string,
   video_credits: boolean,
-  video_intro: boolean,
+  video_intro: boolean
 ): Promise<{ name: string; data: any[] }[]> {
   //  Notes:
   //   - Every TE already has its own individual Invisible, so we can work with those
@@ -300,10 +306,10 @@ export async function sectionCourse(
   for (let act of activities) {
     try {
       delete act.sc_position;
-    } catch (e) { }
+    } catch (e) {}
     try {
       delete act.section_position;
-    } catch (e) { }
+    } catch (e) {}
   }
 
   let all_element_parents = elements.map((e) => e.activity_id);
@@ -323,11 +329,15 @@ export async function sectionCourse(
   // If we're moving HTML TEs and Expandable containers, do that here
   // so that empty sections get wiped in the next step.
   if (video_credits || video_intro) {
+    console.debug(
+      "video credits: " + video_credits + ", video intro: " + video_intro
+    );
 
     let sections: CourseObject[] = [];
     let invisibles_and_friends: CourseObject[] = [];
     let tes: CourseObject[] = [];
     pages.forEach(function (p) {
+      console.debug(p);
       // We're going to move down the page in order of position.
       // There are surprisingly many parts to this, and we have to make
       // sure they're in position order at each step.
@@ -335,41 +345,54 @@ export async function sectionCourse(
       let section_containers = activities.filter(
         (a) => a.parent_id == p.id && a.type === "SECTION_CONTAINER"
       );
-      if (!section_containers) { return []; } // No section containers means no TEs, we're done.
+      if (!section_containers) {
+        return [];
+      } // No section containers means no TEs, we're done.
       section_containers.sort(function (a, b) {
         return a.position - b.position;
       });
 
       for (let i = 0; i < section_containers.length; i++) {
         // Get sections within this section container.
-        let local_sections = activities.filter(function (s: CourseObject, i) {
+        let local_sections = activities.filter(function (s: CourseObject, j) {
           return s.parent_id == section_containers[i].id;
         });
         // Sort them by position.
-        local_sections.sort(function (a, b) { return a.position - b.position; });
+        local_sections.sort(function (a, b) {
+          return a.position - b.position;
+        });
         // Push these in order
         sections = sections.concat(local_sections);
       }
-      if (sections.length === 0) { return []; }
+      if (sections.length === 0) {
+        return [];
+      }
 
       // Sections contain Invisibles, Question Sets, Expandables, and more stuff in the future.
       for (let j = 0; j < sections.length; j++) {
         let local_invisibles = activities.filter(
-          (a) => a.parent_id == sections[j].id && a.type === "INVISIBLE_CONTAINER"
+          (a) =>
+            a.parent_id == sections[j].id && a.type === "INVISIBLE_CONTAINER"
         );
-        local_invisibles.sort(function (a, b) { return a.position - b.position; });
-        invisibles_and_friends = invisibles_and_friends.concat(local_invisibles);
+        local_invisibles.sort(function (a, b) {
+          return a.position - b.position;
+        });
+        invisibles_and_friends =
+          invisibles_and_friends.concat(local_invisibles);
       }
-      if (invisibles_and_friends.length === 0) { return []; }
+      if (invisibles_and_friends.length === 0) {
+        return [];
+      }
 
       for (let k = 0; k < invisibles_and_friends.length; k++) {
         let local_tes = elements.filter(
           (e) => e.activity_id == invisibles_and_friends[k].id
         );
-        local_tes.sort(function (a, b) { return a.position - b.position; });
+        local_tes.sort(function (a, b) {
+          return a.position - b.position;
+        });
         tes = tes.concat(local_tes);
       }
-
     });
 
     // In each section
@@ -380,12 +403,16 @@ export async function sectionCourse(
           continue;
         }
         // Is there just one invisible in this section?
-        let local_invisibles = invisibles_and_friends.filter((a) => a.parent_id === sections[i].id);
+        let local_invisibles = invisibles_and_friends.filter(
+          (a) => a.parent_id === sections[i].id
+        );
         if (local_invisibles.length !== 1) {
           continue;
         }
         // Is there just one TE in that invisible?
-        let local_tes = tes.filter((t) => t.activity_id === invisibles_and_friends[j].id);
+        let local_tes = tes.filter(
+          (t) => t.activity_id === invisibles_and_friends[j].id
+        );
         if (local_tes.length !== 1) {
           continue;
         }
@@ -402,12 +429,21 @@ export async function sectionCourse(
           }
           let previous_section = sections[i - 1];
           // Is it just one HTML TE?
-          let previous_invisibles = invisibles_and_friends.filter((a) => a.parent_id === previous_section.id);
+          let previous_invisibles = invisibles_and_friends.filter(
+            (a) => a.parent_id === previous_section.id
+          );
           if (previous_invisibles.length === 1) {
-            let previous_tes = tes.filter((t) => t.activity_id === previous_invisibles[0].id);
-            if (previous_tes.length === 1 && previous_tes[0].type.contains("HTML")) {
+            let previous_tes = tes.filter(
+              (t) => t.activity_id === previous_invisibles[0].id
+            );
+            if (
+              previous_tes.length === 1 &&
+              previous_tes[0].type.contains("HTML")
+            ) {
               // Move the invisible for the HTML TE out of the previous section and into the current one.
-              non_empty_activities.find((a) => a.id === previous_invisibles[0].id).parent_id = sections[i].id;
+              non_empty_activities.find(
+                (a) => a.id === previous_invisibles[0].id
+              ).parent_id = sections[i].id;
             }
           }
           previous_invisibles[0].position = 1;
@@ -419,11 +455,15 @@ export async function sectionCourse(
           }
           let next_section = sections[i + 1];
           // Is it just one Expandable container?
-          let next_invisibles = invisibles_and_friends.filter((a) => a.parent_id === next_section.id);
+          let next_invisibles = invisibles_and_friends.filter(
+            (a) => a.parent_id === next_section.id
+          );
           if (next_invisibles.length === 1) {
             if (next_invisibles[0].type === "EXPAND_CONTAINER") {
               // Move the Expandable container out of the next section and into the current one.
-              non_empty_activities.find((a) => a.id === next_invisibles[0].id).parent_id = sections[i].id;
+              non_empty_activities.find(
+                (a) => a.id === next_invisibles[0].id
+              ).parent_id = sections[i].id;
             }
           }
           next_invisibles[0].position = 3;
@@ -453,7 +493,6 @@ export async function sectionCourse(
 
   return await cleanCourse(json_files);
 }
-
 
 /**
  * Makes it so you can't fast-forward through videos.
@@ -493,10 +532,12 @@ export async function cleanCourse(
     name: string;
     data: any[];
   }[]
-): Promise<{
-  name: string;
-  data: any[];
-}[]> {
+): Promise<
+  {
+    name: string;
+    data: any[];
+  }[]
+> {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0]
     .data;
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
@@ -506,10 +547,10 @@ export async function cleanCourse(
   for (let act of activities) {
     try {
       delete act.sc_position;
-    } catch (e) { }
+    } catch (e) {}
     try {
       delete act.section_position;
-    } catch (e) { }
+    } catch (e) {}
   }
 
   // If there are any elements that are output_only and detached, we need to strip them out.
@@ -576,7 +617,6 @@ export async function cleanCourse(
   return json_files;
 }
 
-
 /////////////////////////////////////////
 // Utilities
 /////////////////////////////////////////
@@ -585,4 +625,3 @@ export async function cleanCourse(
 export function makeUUID(): string {
   return uuidv4();
 }
-

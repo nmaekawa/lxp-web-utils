@@ -687,7 +687,9 @@ async function processFile(): Promise<void> {
     if (
       options.lock_unlock !== "no_change" ||
       options.required_optional !== "no_change" ||
-      options.section_scope !== "no_change"
+      options.section_scope !== "no_change" ||
+      options.video_credits ||
+      options.video_intro
     ) {
       json_files = await processSections(json_files, options);
       console.debug("Sections processed");
