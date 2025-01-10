@@ -127,7 +127,7 @@ export async function createCourseSheet(
  * @param elements The elements.json file
  * @returns One big array of the courseware, in order
  */
-function getCoursewareInOrder(
+export function getCoursewareInOrder(
   activities: CourseObject[],
   elements: CourseObject[]
 ): CourseObject[] {
@@ -152,7 +152,7 @@ function getCoursewareInOrder(
     courseware_in_order.push(...result[0]);
     count = result[1];
   }
-  // console.debug(courseware_in_order);
+
   console.log("Courseware put in order.");
   return courseware_in_order;
 }

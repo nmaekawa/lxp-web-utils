@@ -2,7 +2,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { updateStatus } from "./index";
-import { CourseObject } from "./course_sheet";
+import { CourseObject, getCoursewareInOrder } from "./course_sheet";
 
 /**
  * Handles all locking/unlocking and required/optional settings.
@@ -333,140 +333,77 @@ export async function sectionCourse(
       "video credits: " + video_credits + ", video intro: " + video_intro
     );
 
-    let sections: CourseObject[] = [];
-    let invisibles_and_friends: CourseObject[] = [];
-    let tes: CourseObject[] = [];
-    pages.forEach(function (p) {
-      console.debug(p);
-      // We're going to move down the page in order of position.
-      // There are surprisingly many parts to this, and we have to make
-      // sure they're in position order at each step.
+    // Start by making a nicer structure to work with.
+    let courseware_in_order = getCoursewareInOrder(
+      non_empty_activities,
+      elements
+    );
+    let outline = getNestedStructure(courseware_in_order);
 
-      let section_containers = activities.filter(
-        (a) => a.parent_id == p.id && a.type === "SECTION_CONTAINER"
-      );
-      if (!section_containers) {
-        return [];
-      } // No section containers means no TEs, we're done.
-      section_containers.sort(function (a, b) {
-        return a.position - b.position;
-      });
-
-      for (let i = 0; i < section_containers.length; i++) {
-        // Get sections within this section container.
-        let local_sections = activities.filter(function (s: CourseObject, j) {
-          return s.parent_id == section_containers[i].id;
-        });
-        // Sort them by position.
-        local_sections.sort(function (a, b) {
-          return a.position - b.position;
-        });
-        // Push these in order
-        sections = sections.concat(local_sections);
-      }
-      if (sections.length === 0) {
-        return [];
-      }
-
-      // Sections contain Invisibles, Question Sets, Expandables, and more stuff in the future.
-      for (let j = 0; j < sections.length; j++) {
-        let local_invisibles = activities.filter(
-          (a) =>
-            a.parent_id == sections[j].id && a.type === "INVISIBLE_CONTAINER"
-        );
-        local_invisibles.sort(function (a, b) {
-          return a.position - b.position;
-        });
-        invisibles_and_friends =
-          invisibles_and_friends.concat(local_invisibles);
-      }
-      if (invisibles_and_friends.length === 0) {
-        return [];
-      }
-
-      for (let k = 0; k < invisibles_and_friends.length; k++) {
-        let local_tes = elements.filter(
-          (e) => e.activity_id == invisibles_and_friends[k].id
-        );
-        local_tes.sort(function (a, b) {
-          return a.position - b.position;
-        });
-        tes = tes.concat(local_tes);
-      }
-    });
-
-    // In each section
-    for (let i = 0; i < sections.length; i++) {
-      // Look at each invisible (or equivalent) in that section
-      for (let j = 0; j < invisibles_and_friends.length; j++) {
-        if (invisibles_and_friends[j].parent_id !== sections[i].id) {
-          continue;
-        }
+    // Now that we have the nice happy data structure, we can work with it much easier.
+    for (let q = 0; q < outline.length; q++) {
+      let current_sections = outline[q].contents;
+      for (let i = 0; i < current_sections.length; i++) {
+        let local_invisibles = current_sections[i].contents;
+        // Look at each invisible (or equivalent) in that section
         // Is there just one invisible in this section?
-        let local_invisibles = invisibles_and_friends.filter(
-          (a) => a.parent_id === sections[i].id
-        );
         if (local_invisibles.length !== 1) {
           continue;
         }
         // Is there just one TE in that invisible?
-        let local_tes = tes.filter(
-          (t) => t.activity_id === invisibles_and_friends[j].id
-        );
-        if (local_tes.length !== 1) {
+        if (local_invisibles[0].contents.length !== 1) {
           continue;
         }
+        let local_te = local_invisibles[0].contents[0];
         // Is it a video TE?
-        if (!local_tes[0].type.contains("VIDEO")) {
+        if (!local_te.type.includes("VIDEO")) {
           continue;
         }
         // The positions of the invisibles here will be 1,2,3, just to make it simple.
-        invisibles_and_friends[j].position = 2;
+        local_invisibles[0].position = 2;
         if (video_intro) {
           // Is there a previous section?
           if (i === 0) {
             continue;
           }
-          let previous_section = sections[i - 1];
+          let previous_section = current_sections[i - 1];
           // Is it just one HTML TE?
-          let previous_invisibles = invisibles_and_friends.filter(
-            (a) => a.parent_id === previous_section.id
-          );
-          if (previous_invisibles.length === 1) {
-            let previous_tes = tes.filter(
-              (t) => t.activity_id === previous_invisibles[0].id
-            );
-            if (
-              previous_tes.length === 1 &&
-              previous_tes[0].type.contains("HTML")
-            ) {
-              // Move the invisible for the HTML TE out of the previous section and into the current one.
-              non_empty_activities.find(
-                (a) => a.id === previous_invisibles[0].id
-              ).parent_id = sections[i].id;
-            }
+          if (previous_section.contents.length !== 1) {
+            continue;
           }
-          previous_invisibles[0].position = 1;
+          let previous_invis = previous_section.contents[0];
+          if (!previous_invis.contents[0].type.includes("HTML")) {
+            continue;
+          }
+          // Move the invisible for the HTML TE out of the previous section and into the current one.
+          // Remember to do this in the non_empty_activities array, because that's our current working item
+          // that we're going to write back to the json_files later.
+          let target = non_empty_activities.find(
+            (a) => a.id === previous_invis.id
+          );
+          console.log(target);
+          target.parent_id = current_sections[i].id;
+          target.position = 1;
         }
         if (video_credits) {
           // Is there a next section?
-          if (i === sections.length - 1) {
+          if (i === current_sections.length - 1) {
             continue;
           }
-          let next_section = sections[i + 1];
+          let next_section = current_sections[i + 1];
           // Is it just one Expandable container?
-          let next_invisibles = invisibles_and_friends.filter(
-            (a) => a.parent_id === next_section.id
-          );
-          if (next_invisibles.length === 1) {
-            if (next_invisibles[0].type === "EXPAND_CONTAINER") {
-              // Move the Expandable container out of the next section and into the current one.
-              non_empty_activities.find(
-                (a) => a.id === next_invisibles[0].id
-              ).parent_id = sections[i].id;
-            }
+          if (next_section.contents.length !== 1) {
+            continue;
           }
-          next_invisibles[0].position = 3;
+          let next_invis = next_section.contents[0];
+          if (next_invis.type == "EXPAND_CONTAINER") {
+            continue;
+          }
+          // Move the Expandable container out of the next section and into the current one.
+          let target = non_empty_activities.find((a) => a.id === next_invis.id);
+          console.log(target);
+          target.parent_id = next_invis.id;
+          target.position = 3;
         }
       }
     }
@@ -492,6 +429,73 @@ export async function sectionCourse(
   });
 
   return await cleanCourse(json_files);
+}
+
+/**
+ * Takes in a flat array of courseware items and returns a nested structure.
+ * The courseware must be in the order that it appears in the course,
+ * or you're going to get things in the wrong order on the way out.
+ * @param courseware_in_order
+ * @returns
+ */
+function getNestedStructure(
+  courseware_in_order: CourseObject[]
+): CourseObject[] {
+  let section_containers = courseware_in_order.filter(
+    (a) => a.type === "SECTION_CONTAINER"
+  );
+  let sections = courseware_in_order.filter((a) => a.type === "SECTION");
+  let all_section_ids = sections.map((s) => s.id);
+  let invisibles_and_friends = courseware_in_order.filter(function (a) {
+    // Rather than trying to enumerate all the kinds of invisible-level containers,
+    // which we might have more of over time,
+    // we're just going to check to see if its parent is a section.
+    return all_section_ids.includes(a.parent_id);
+  });
+  // Only TEs have activity id values. Activities instead have parent_id.
+  let tes = courseware_in_order.filter((e) => e.hasOwnProperty("activity_id"));
+
+  console.log(section_containers);
+  console.log(sections);
+  console.log(invisibles_and_friends);
+  console.log(tes);
+
+  let outline = structuredClone(section_containers);
+  // Let's put copies of each courseware item into a nested data structure.
+  for (let i = 0; i < outline.length; i++) {
+    // Start by getting the sections that are the child of this section container.
+    let local_sections = [];
+    for (let j = 0; j < sections.length; j++) {
+      if (sections[j].parent_id === outline[i].id) {
+        local_sections.push(structuredClone(sections[j]));
+      }
+    }
+    // Attach that to the section container as its "contents"
+    outline[i].contents = local_sections;
+    // Now go down to the sections and get the invisibles (or equivalent) in each section.
+    for (let k = 0; k < local_sections.length; k++) {
+      let local_invis = [];
+      for (let l = 0; l < invisibles_and_friends.length; l++) {
+        if (invisibles_and_friends[l].parent_id === local_sections[k].id) {
+          local_invis.push(structuredClone(invisibles_and_friends[l]));
+        }
+      }
+      // Attach that to the section as its "contents"
+      local_sections[k].contents = local_invis;
+      // Final stage: teaching elements.
+      for (let m = 0; m < local_invis.length; m++) {
+        let local_tes = [];
+        for (let n = 0; n < tes.length; n++) {
+          if (tes[n].activity_id === local_invis[m].id) {
+            local_tes.push(structuredClone(tes[n]));
+          }
+        }
+        // Attach that to the invisible as its "contents"
+        local_invis[m].contents = local_tes;
+      }
+    }
+  }
+  return outline;
 }
 
 /**
