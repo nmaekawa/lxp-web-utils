@@ -402,7 +402,7 @@ export async function sectionCourse(
           // Move the Expandable container out of the next section and into the current one.
           let target = non_empty_activities.find((a) => a.id === next_invis.id);
           console.log(target);
-          target.parent_id = next_invis.id;
+          target.parent_id = current_sections[i].id;
           target.position = 3;
         }
       }
