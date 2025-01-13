@@ -25,6 +25,7 @@ import "../css/index.css";
 // Present numerical options better in updateConfirmationDialog(), especially -1
 // Report what's been cleaned in cleanCourse()
 // Replace removed items with placeholders in cleanCourse()
+// Improve the code for heuristic sectioning, maybe with a try/catch block
 
 const default_settings: { [key: string]: boolean | number } = {
   clean: true,
@@ -420,8 +421,19 @@ function updateOptionSummary(): void {
   } else {
     section_options += "no change";
   }
-  section_span.innerHTML = section_options;
+  section_options += ", Heuristics: ";
+  if (options.video_intro) {
+    section_options += "<span class='changed-setting'>video intros</span>, ";
+  }
+  if (options.video_credits) {
+    section_options += "<span class='changed-setting'>video credits</span>, ";
+  }
+  if (!options.video_intro && !options.video_credits) {
+    section_options += "none";
+  }
+    section_span.innerHTML = section_options;
 
+  // Question set row
   let qset_options = "Display: ";
   if (options.qset_display === "display_one") {
     qset_options +=
@@ -433,7 +445,7 @@ function updateOptionSummary(): void {
     qset_options += "no change";
   }
 
-  // Passing row
+
   // Numerical things take a little extra checking.
   qset_options += ", Passing: ";
   if (options.pass_percent_no_change) {

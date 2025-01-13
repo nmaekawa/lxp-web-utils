@@ -132,7 +132,7 @@ export async function processQuestionSets(
  * @param section_scope
  * @returns
  */
-export async function setSectionGrain(
+async function setSectionGrain(
   json_files: { name: string; data: any[] }[],
   section_scope: string
 ): Promise<{ name: string; data: any[] }[]> {
