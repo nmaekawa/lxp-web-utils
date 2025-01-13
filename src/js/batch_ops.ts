@@ -417,25 +417,6 @@ export async function sectionCourse(
     }
   }
 
-  // Keep only SECTIONs that have child activities.
-  let sections_with_children = activities
-    .filter(function (a) {
-      return (
-        a.type === "INVISIBLE_CONTAINER" ||
-        a.type === "CEK_QUESTION_SET" ||
-        a.type === "EXPAND_CONTAINER"
-      );
-    })
-    .map((a) => a.parent_id);
-  let empty_section_ids = activities
-    .filter(function (a) {
-      return a.type === "SECTION" && !sections_with_children.includes(a.id);
-    })
-    .map((a) => a.id);
-  non_empty_activities = non_empty_activities.filter(function (a) {
-    return !empty_section_ids.includes(a.id);
-  });
-
   return await cleanCourse(json_files);
 }
 
