@@ -315,6 +315,7 @@ export async function sectionCourse(
   let all_element_parents = elements.map((e) => e.activity_id);
 
   // Keep only INVISIBLE_CONTAINERs that have child elements.
+  // (Don't touch other things at the Invisible level, like Expandables.)
   let empty_invisible_ids = activities
     .filter(function (a) {
       return (
@@ -334,17 +335,17 @@ export async function sectionCourse(
     );
 
     // Start by making a nicer structure to work with.
-    let courseware_in_order = getCoursewareInOrder(
-      non_empty_activities,
-      elements
+    // This will be an array of copies of section containers, each with
+    // `contents` arrays that contain copies of sections, and so on down to TEs.
+    let outline = getNestedStructure(
+      getCoursewareInOrder(non_empty_activities, elements)
     );
-    let outline = getNestedStructure(courseware_in_order);
 
     // Now that we have the nice happy data structure, we can work with it much easier.
     for (let q = 0; q < outline.length; q++) {
-      let current_sections = outline[q].contents;
-      for (let i = 0; i < current_sections.length; i++) {
-        let local_invisibles = current_sections[i].contents;
+      let local_sections = outline[q].contents;
+      for (let i = 0; i < local_sections.length; i++) {
+        let local_invisibles = local_sections[i].contents;
         // Look at each invisible (or equivalent) in that section
         // Is there just one invisible in this section?
         if (local_invisibles.length !== 1) {
@@ -366,12 +367,15 @@ export async function sectionCourse(
           if (i === 0) {
             continue;
           }
-          let previous_section = current_sections[i - 1];
+          let previous_section = local_sections[i - 1];
           // Is it just one HTML TE?
           if (previous_section.contents.length !== 1) {
             continue;
           }
           let previous_invis = previous_section.contents[0];
+          if(previous_invis.type !== "INVISIBLE_CONTAINER") {
+            continue;
+          }
           if (!previous_invis.contents[0].type.includes("HTML")) {
             continue;
           }
@@ -381,28 +385,32 @@ export async function sectionCourse(
           let target = non_empty_activities.find(
             (a) => a.id === previous_invis.id
           );
-          console.log(target);
-          target.parent_id = current_sections[i].id;
+          console.debug(previous_invis);
+          console.debug(target);
+          target.parent_id = local_sections[i].id;
           target.position = 1;
         }
         if (video_credits) {
           // Is there a next section?
-          if (i === current_sections.length - 1) {
+          if (i === local_sections.length - 1) {
             continue;
           }
-          let next_section = current_sections[i + 1];
+          let next_section = local_sections[i + 1];
           // Is it just one Expandable container?
           if (next_section.contents.length !== 1) {
             continue;
           }
           let next_invis = next_section.contents[0];
-          if (next_invis.type == "EXPAND_CONTAINER") {
+          if (next_invis.type !== "EXPAND_CONTAINER") {
             continue;
           }
           // Move the Expandable container out of the next section and into the current one.
+          // We need to do this in the non_empty_activities array, because that's our current working item
+          // that we're going to write back to the json_files later.
           let target = non_empty_activities.find((a) => a.id === next_invis.id);
-          console.log(target);
-          target.parent_id = current_sections[i].id;
+          console.debug(next_invis);
+          console.debug(target);
+          target.parent_id = local_sections[i].id;
           target.position = 3;
         }
       }

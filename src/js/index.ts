@@ -27,7 +27,7 @@ import "../css/index.css";
 // Replace removed items with placeholders in cleanCourse()
 
 const default_settings: { [key: string]: boolean | number } = {
-  clean: false,
+  clean: true,
   display_all: false,
   display_no_change: true,
   display_one: false,
@@ -51,8 +51,8 @@ const default_settings: { [key: string]: boolean | number } = {
   show_no_change: true,
   spreadsheet: true,
   unlock: false,
-  video_credits: false,
-  video_intro: false,
+  video_credits: true,
+  video_intro: true,
 };
 
 const human_readable_options: { [key: string]: string } = {
