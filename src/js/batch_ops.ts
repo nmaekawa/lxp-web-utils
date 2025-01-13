@@ -45,7 +45,7 @@ export async function processSections(
   }
 
   if (options.section_scope !== "no_change") {
-    json_files = await sectionCourse(json_files, options.section_scope);
+    json_files = await setSectionGrain(json_files, options.section_scope);
   }
 
   if (options.video_credits || options.video_intro) {
@@ -132,7 +132,7 @@ export async function processQuestionSets(
  * @param section_scope
  * @returns
  */
-export async function sectionCourse(
+export async function setSectionGrain(
   json_files: { name: string; data: any[] }[],
   section_scope: string
 ): Promise<{ name: string; data: any[] }[]> {
