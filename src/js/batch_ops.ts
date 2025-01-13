@@ -44,14 +44,13 @@ export async function processSections(
     }
   }
 
-  if (
-    options.section_scope !== "no_change" ||
-    options.video_credits ||
-    options.video_intro
-  ) {
-    json_files = await sectionCourse(
+  if (options.section_scope !== "no_change") {
+    json_files = await sectionCourse(json_files, options.section_scope);
+  }
+
+  if (options.video_credits || options.video_intro) {
+    json_files = await heuristicSectioning(
       json_files,
-      options.section_scope,
       options.video_credits,
       options.video_intro
     );
@@ -135,9 +134,7 @@ export async function processQuestionSets(
  */
 export async function sectionCourse(
   json_files: { name: string; data: any[] }[],
-  section_scope: string,
-  video_credits: boolean,
-  video_intro: boolean
+  section_scope: string
 ): Promise<{ name: string; data: any[] }[]> {
   //  Notes:
   //   - Every TE already has its own individual Invisible, so we can work with those
@@ -327,6 +324,36 @@ export async function sectionCourse(
     return !empty_invisible_ids.includes(a.id);
   });
 
+  // Write non-empty activities back to the activities data.
+  json_files.forEach((f) => {
+    if (f.name.includes("activities")) {
+      f.data = non_empty_activities;
+    }
+  });
+
+  let cleaned_course = await cleanCourse(json_files);
+  console.debug(cleaned_course);
+  return cleaned_course;
+}
+
+/**
+ * Uses rule-of-thumb to collect certain items together,
+ * such as putting video intros and credits in the same section as the video.
+ *
+ * @param json_files
+ * @param video_credits
+ * @param video_intro
+ * @returns the revised JSON files
+ */
+async function heuristicSectioning(
+  json_files: { name: string; data: any[] }[],
+  video_credits: boolean,
+  video_intro: boolean
+): Promise<{ name: string; data: any[] }[]> {
+  let activities = json_files.filter((e) => e.name.includes("activities"))[0]
+    .data;
+  let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
+
   // If we're moving HTML TEs and Expandable containers, do that here
   // so that empty sections get wiped in the next step.
   if (video_credits || video_intro) {
@@ -338,10 +365,11 @@ export async function sectionCourse(
     // This will be an array of copies of section containers, each with
     // `contents` arrays that contain copies of sections, and so on down to TEs.
     let outline = getNestedStructure(
-      getCoursewareInOrder(non_empty_activities, elements)
+      getCoursewareInOrder(activities, elements)
     );
 
     // Now that we have the nice happy data structure, we can work with it much easier.
+    // Go through sections, batched by section container so we don't accidentally leave the page.
     for (let q = 0; q < outline.length; q++) {
       let local_sections = outline[q].contents;
       for (let i = 0; i < local_sections.length; i++) {
@@ -373,7 +401,7 @@ export async function sectionCourse(
             continue;
           }
           let previous_invis = previous_section.contents[0];
-          if(previous_invis.type !== "INVISIBLE_CONTAINER") {
+          if (previous_invis.type !== "INVISIBLE_CONTAINER") {
             continue;
           }
           if (!previous_invis.contents[0].type.includes("HTML")) {
@@ -382,13 +410,11 @@ export async function sectionCourse(
           // Move the invisible for the HTML TE out of the previous section and into the current one.
           // Remember to do this in the non_empty_activities array, because that's our current working item
           // that we're going to write back to the json_files later.
-          let target = non_empty_activities.find(
-            (a) => a.id === previous_invis.id
-          );
-          console.debug(previous_invis);
-          console.debug(target);
+          let target = activities.find((a) => a.id === previous_invis.id);
           target.parent_id = local_sections[i].id;
           target.position = 1;
+          previous_section.contents = [];
+          local_sections[i].contents.unshift(previous_invis);
         }
         if (video_credits) {
           // Is there a next section?
@@ -407,17 +433,17 @@ export async function sectionCourse(
           // Move the Expandable container out of the next section and into the current one.
           // We need to do this in the non_empty_activities array, because that's our current working item
           // that we're going to write back to the json_files later.
-          let target = non_empty_activities.find((a) => a.id === next_invis.id);
-          console.debug(next_invis);
-          console.debug(target);
+          let target = activities.find((a) => a.id === next_invis.id);
           target.parent_id = local_sections[i].id;
           target.position = 3;
+          next_section.contents = [];
+          local_sections[i].contents.push(next_invis);
         }
       }
     }
   }
 
-  return await cleanCourse(json_files);
+  return json_files;
 }
 
 /**
