@@ -354,94 +354,100 @@ async function heuristicSectioning(
     .data;
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
 
-  // If we're moving HTML TEs and Expandable containers, do that here
-  // so that empty sections get wiped in the next step.
-  if (video_credits || video_intro) {
-    console.debug(
-      "video credits: " + video_credits + ", video intro: " + video_intro
-    );
+  console.debug(
+    "video credits: " + video_credits + ", video intro: " + video_intro
+  );
 
-    // Start by making a nicer structure to work with.
-    // This will be an array of copies of section containers, each with
-    // `contents` arrays that contain copies of sections, and so on down to TEs.
-    let outline = getNestedStructure(
-      getCoursewareInOrder(activities, elements)
-    );
+  // Start by making a nicer structure to work with.
+  // This will be an array of copies of section containers, each with
+  // `contents` arrays that contain copies of sections, and so on down to TEs.
+  let outline = getNestedStructure(getCoursewareInOrder(activities, elements));
 
-    // Now that we have the nice happy data structure, we can work with it much easier.
-    // Go through sections, batched by section container so we don't accidentally leave the page.
-    for (let q = 0; q < outline.length; q++) {
-      let local_sections = outline[q].contents;
-      for (let i = 0; i < local_sections.length; i++) {
-        let local_invisibles = local_sections[i].contents;
-        // Look at each invisible (or equivalent) in that section
-        // Is there just one invisible in this section?
-        if (local_invisibles.length !== 1) {
-          continue;
-        }
-        // Is there just one TE in that invisible?
-        if (local_invisibles[0].contents.length !== 1) {
-          continue;
-        }
-        let local_te = local_invisibles[0].contents[0];
-        // Is it a video TE?
-        if (!local_te.type.includes("VIDEO")) {
-          continue;
-        }
-        // The positions of the invisibles here will be 1,2,3, just to make it simple.
-        local_invisibles[0].position = 2;
-        if (video_intro) {
-          // Is there a previous section?
-          if (i === 0) {
-            continue;
-          }
+  // Now that we have the nice happy data structure, we can work with it much easier.
+  // Go through sections, batched by section container so we don't accidentally leave the page.
+  for (let q = 0; q < outline.length; q++) {
+    let local_sections = outline[q].contents;
+    for (let i = 0; i < local_sections.length; i++) {
+      let local_invisibles = local_sections[i].contents;
+      // Is there just one invisible (or equivalent) in this section?
+      if (local_invisibles.length !== 1) {
+        continue;
+      }
+      // Is there just one TE in this invisible?
+      if (local_invisibles[0].contents.length !== 1) {
+        continue;
+      }
+      // Is it a video TE?
+      let local_te = local_invisibles[0].contents[0];
+      if (!local_te.type.includes("VIDEO")) {
+        continue;
+      }
+      // The positions of the invisibles here will be 1,2,3, just to make it simple.
+      // Write that to the activities array.
+      let target = activities.find((a) => a.id === local_invisibles[0].id);
+      target.position = 2;
+
+      if (video_intro) {
+        // Is there a previous section?
+        if (i !== 0) {
           let previous_section = local_sections[i - 1];
-          // Is it just one HTML TE?
-          if (previous_section.contents.length !== 1) {
-            continue;
+          // Is it just one invisible with one HTML TE?
+          if (previous_section.contents.length === 1) {
+            let previous_invis = previous_section.contents[0];
+            if (
+              previous_invis.contents.length === 1 &&
+              previous_invis.type.includes("INVISIBLE_CONTAINER")
+            ) {
+              let previous_te = previous_invis.contents[0];
+              if (previous_te.type.includes("HTML")) {
+                // Move the invisible for the HTML TE out of the previous section and into the current one.
+                // Remember to do this in the non_empty_activities array, because that's our current working item
+                // that we're going to write back to the json_files later.
+                let target = activities.find((a) => a.id === previous_invis.id);
+                target.parent_id = local_sections[i].id;
+                target.position = 1;
+                previous_section.contents = [];
+                local_sections[i].contents.unshift(previous_invis);
+              }
+            }
           }
-          let previous_invis = previous_section.contents[0];
-          if (previous_invis.type !== "INVISIBLE_CONTAINER") {
-            continue;
-          }
-          if (!previous_invis.contents[0].type.includes("HTML")) {
-            continue;
-          }
-          // Move the invisible for the HTML TE out of the previous section and into the current one.
-          // Remember to do this in the non_empty_activities array, because that's our current working item
-          // that we're going to write back to the json_files later.
-          let target = activities.find((a) => a.id === previous_invis.id);
-          target.parent_id = local_sections[i].id;
-          target.position = 1;
-          previous_section.contents = [];
-          local_sections[i].contents.unshift(previous_invis);
         }
-        if (video_credits) {
-          // Is there a next section?
-          if (i === local_sections.length - 1) {
-            continue;
-          }
+      }
+      if (video_credits) {
+        // Is there a next section?
+        if (i !== local_sections.length - 1) {
           let next_section = local_sections[i + 1];
-          // Is it just one Expandable container?
-          if (next_section.contents.length !== 1) {
-            continue;
+          // Is it just one expandable with one HTML TE?
+          if (next_section.contents.length === 1) {
+            let next_invis = next_section.contents[0];
+            if (
+              next_invis.contents.length === 1 &&
+              next_invis.type.includes("EXPAND_CONTAINER")
+            ) {
+              let next_te = next_invis.contents[0];
+              if (next_te.type.includes("HTML")) {
+                // Move the Expandable container out of the next section and into the current one.
+                // We need to do this in the non_empty_activities array, because that's our current working item
+                // that we're going to write back to the json_files later.
+                let target = activities.find((a) => a.id === next_invis.id);
+                target.parent_id = local_sections[i].id;
+                target.position = 3;
+                next_section.contents = [];
+                local_sections[i].contents.push(next_invis);
+              }
+            }
           }
-          let next_invis = next_section.contents[0];
-          if (next_invis.type !== "EXPAND_CONTAINER") {
-            continue;
-          }
-          // Move the Expandable container out of the next section and into the current one.
-          // We need to do this in the non_empty_activities array, because that's our current working item
-          // that we're going to write back to the json_files later.
-          let target = activities.find((a) => a.id === next_invis.id);
-          target.parent_id = local_sections[i].id;
-          target.position = 3;
-          next_section.contents = [];
-          local_sections[i].contents.push(next_invis);
         }
       }
     }
   }
+
+  // Write the changes back to the activities array.
+  json_files.forEach((f) => {
+    if (f.name.includes("activities")) {
+      f.data = activities;
+    }
+  });
 
   return json_files;
 }
