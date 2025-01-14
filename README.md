@@ -18,16 +18,13 @@ You can make the following changes to a course export. Each bullet point is inde
 * Make all sections required or optional
 * Allow or disallow scrubbing on all videos
 * Collapse all sections on each page into a single section, or break all TEs out into their own individual section
+* Collect a sequence of (HTML + video + expandable) into a single section if they're in separate sections
+* Show questions within each question set all at once or one at a time
+* Select when to display answers for all question sets
+* Change the passing percentage and number of attempts for all question sets
 * Clean the course for import back into the LXP. This will eventually be unnecessary, but the LXP currently (03Jan2025) exports some TEs that it cannot import.
 
 The app also provides a spreadsheet showing the structure of the course, including all teaching elements and questions. You can turn that off if you want, or you can request *just* that.
-
-### Future Functionality
-
-The following items are planned but not yet implemented.
-
-* When an HTML TE appears before a video TE, put the HTML TE into the same section with the video TE.
-* When an Expandable container appears after a video TE, put the Expandable into the same section with the video TE.
 
 ### Security
 
@@ -48,6 +45,7 @@ If you want to generate that page yourself:
 * `npm run build`
 * `npm run start`
 * You can access the page at `http://[::]:8080/index.html` or `http://localhost:8080/index.html`
+* If you want a minified version, `npm run prod`
 
 ## Development
 
