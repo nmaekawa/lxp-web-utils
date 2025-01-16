@@ -26,6 +26,7 @@ import "../css/index.css";
 // Report what's been cleaned in cleanCourse()
 // Replace removed items with placeholders in cleanCourse()
 // Improve the code for heuristic sectioning, maybe with a try/catch block
+// When we get LTI tools, add extra info from them to the spreadsheet
 
 const default_settings: { [key: string]: boolean | number } = {
   clean: true,
