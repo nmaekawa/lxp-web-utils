@@ -5,7 +5,7 @@ import {
   processSections,
   disableVideoScrubbing,
   processQuestionSets,
-  cleanCourse
+  cleanCourse,
 } from "./batch_ops";
 import { Archive } from "@obsidize/tar-browserify";
 import { gzip, ungzip } from "pako";
@@ -69,11 +69,83 @@ const human_readable_options: { [key: string]: string } = {
   pass_percent: "Passing percentage",
   show_answers: "Show answers",
   spreadsheet: "Include course spreadsheet",
-  test: "Testing",
+  test: "Testing only",
+};
+
+const human_readable_details: { [key: string]: object } = {
+  clean: {
+    true: "Cleaning course for import.",
+    false: "Not cleaning the course.",
+  },
+  download_new_course: {
+    true: "Yes.",
+    false: "No.",
+  },
+  lock_unlock: {
+    lock: "Locking entire course.",
+    unlock: "Unlocking entire course.",
+    no_change: "No change.",
+  },
+  num_attempts: {
+    special: "handle in updateConfirmationDialog()",
+  },
+  num_attempts_no_change: {
+    true: "No change.",
+    false: "Setting number of attempts. ",
+  },
+  pass_percent: {
+    special: "handle in updateConfirmationDialog()",
+  },
+  pass_percent_no_change: {
+    true: "No change.",
+    false: "Setting passing percentage.",
+  },
+  qset_display: {
+    display_one: "Displaying one question at a time.",
+    display_all: "Displaying all questions at once.",
+    display_no_change: "No change.",
+  },
+  required_optional: {
+    require: "Requiring all sections.",
+    optional: "Making all sections optional.",
+    no_change: "No change.",
+  },
+  scrubbing: {
+    disable: "Disabling video scrubbing.",
+    enable: "Enabling video scrubbing.",
+    no_change: "No change.",
+  },
+  section_scope: {
+    section_per_te: "One section per TE.",
+    section_per_page: "One section per page.",
+    no_change: "No change.",
+  },
+  show_answers: {
+    show_when_submitted: "Showing answers on submission.",
+    show_after_attempts: "Showing answers after all attempts.",
+    show_never: "Never showing answers.",
+    show_no_change: "No change.",
+  },
+  spreadsheet: {
+    true: "Yes.",
+    false: "No.",
+  },
+  test: {
+    true: "Yes.",
+    false: "No.",
+  },
+  video_credits: {
+    true: "Moving post-video Expand containers.",
+    false: "Not moving post-video Expand containers",
+  },
+  video_intro: {
+    true: "Moving pre-video HTML TEs.",
+    false: "Not moving pre-video HTML TEs.",
+  },
 };
 
 const progress_stage: { [key: string]: number } = {
-  "Starting": 0,
+  Starting: 0,
   "Getting options": 5,
   "Loading file": 10,
   "Expanding file": 20,
@@ -83,8 +155,8 @@ const progress_stage: { [key: string]: number } = {
   "Cleaning course": 65,
   "Assembling files": 70,
   "Writing file": 75,
-  "Download": 100,
-}
+  Download: 100,
+};
 
 /**
  * This is our "main" function.
@@ -97,16 +169,14 @@ document.addEventListener("DOMContentLoaded", () => {
   updateStatus("Starting");
   makeConfirmationDialog();
   resetSettings();
-  addListeners();  // <-- flow passes to the go button from here
+  addListeners(); // <-- flow passes to the go button from here
   updateOptionSummary();
 });
 
-
-/** 
+/**
  * Explicitly reset some of the interface in case the user reloads.
  */
 function resetSettings(): void {
-
   for (let option in default_settings) {
     let element = document.getElementById(option) as HTMLInputElement;
     if (element) {
@@ -125,18 +195,15 @@ function resetSettings(): void {
   }
 }
 
-/** 
+/**
  * Puts listeners on the file input, form elements, and go button.
  * Application flow starts at the go button.
  */
 function addListeners(): void {
-
   let input_file: File;
   const go_button = document.getElementById("go");
   const form_controls = document.querySelectorAll("input, select");
-  const file_input_element = document.getElementById(
-    "input_tarball"
-  ) as HTMLInputElement;
+  const file_input_element = document.getElementById("input_tarball") as HTMLInputElement;
 
   if (!go_button || !form_controls || !file_input_element) {
     console.error("Missing some basic HTML - check the index.html file");
@@ -236,9 +303,7 @@ function getOptions(): {
   let just_test_value = false;
 
   // Get the options from the lock_unlock radio buttons
-  let lock_unlock = document.querySelector(
-    'input[name="lock_unlock"]:checked'
-  ) as HTMLInputElement;
+  let lock_unlock = document.querySelector('input[name="lock_unlock"]:checked') as HTMLInputElement;
   let lock_unlock_value = lock_unlock.value;
 
   // Get the options from the required_optional radio buttons
@@ -248,9 +313,7 @@ function getOptions(): {
   let required_optional_value = required_optional.value;
 
   // Can learners scrub through videos?
-  let scrubbing = document.querySelector(
-    'input[name="scrubbing"]:checked'
-  ) as HTMLInputElement;
+  let scrubbing = document.querySelector('input[name="scrubbing"]:checked') as HTMLInputElement;
   let scrubbing_value = scrubbing.value;
 
   // Are we sectioning by TE, by page, or no change?
@@ -311,15 +374,11 @@ function getOptions(): {
   let clean_value = clean.checked;
 
   // Include course spreadsheet?
-  let include_course_spreadsheet = document.getElementById(
-    "spreadsheet"
-  ) as HTMLInputElement;
+  let include_course_spreadsheet = document.getElementById("spreadsheet") as HTMLInputElement;
   let include_course_spreadsheet_value = include_course_spreadsheet.checked;
 
   // Sometimes you just want the course spreadsheet and not to do any operations on it.
-  let just_spreadsheet = document.getElementById(
-    "just_spreadsheet"
-  ) as HTMLInputElement;
+  let just_spreadsheet = document.getElementById("just_spreadsheet") as HTMLInputElement;
   let just_test = document.getElementById("just_test") as HTMLInputElement;
   if (just_spreadsheet.checked || just_test.checked) {
     clean_value = false;
@@ -414,11 +473,9 @@ function updateOptionSummary(): void {
   // Scope row
   let section_options = "Scope: ";
   if (options.section_scope === "section_per_te") {
-    section_options +=
-      "<span class='changed-setting'>one section per TE</span>, ";
+    section_options += "<span class='changed-setting'>one section per TE</span>, ";
   } else if (options.section_scope === "section_per_page") {
-    section_options +=
-      "<span class='changed-setting'>one section per page</span>, ";
+    section_options += "<span class='changed-setting'>one section per page</span>, ";
   } else {
     section_options += "no change";
   }
@@ -432,20 +489,17 @@ function updateOptionSummary(): void {
   if (!options.video_intro && !options.video_credits) {
     section_options += "none";
   }
-    section_span.innerHTML = section_options;
+  section_span.innerHTML = section_options;
 
   // Question set row
   let qset_options = "Display: ";
   if (options.qset_display === "display_one") {
-    qset_options +=
-      "<span class='changed-setting'>one question at a time</span>, ";
+    qset_options += "<span class='changed-setting'>one question at a time</span>, ";
   } else if (options.qset_display === "display_all") {
-    qset_options +=
-      "<span class='changed-setting'>all questions at once</span>, ";
+    qset_options += "<span class='changed-setting'>all questions at once</span>, ";
   } else {
     qset_options += "no change";
   }
-
 
   // Numerical things take a little extra checking.
   qset_options += ", Passing: ";
@@ -455,8 +509,7 @@ function updateOptionSummary(): void {
     qset_options += "<span class='changed-setting'>no minimum</span>";
   } else if (options.pass_percent > 100 || options.pass_percent < 0) {
     qset_options += "<span class='bad-setting'>" + String(options.pass_percent) + "%</span>";
-  }
-  else {
+  } else {
     qset_options += "<span class='changed-setting'>" + String(options.pass_percent) + "%</span>";
   }
   qset_options += ", # Attempts: ";
@@ -466,8 +519,7 @@ function updateOptionSummary(): void {
     qset_options += "<span class='changed-setting'>unlimited</span>";
   } else if (options.num_attempts > 10) {
     qset_options += "<span class='bad-setting'>" + String(options.num_attempts) + "</span>";
-  }
-  else {
+  } else {
     qset_options += "<span class='changed-setting'>" + String(options.num_attempts) + "</span>";
   }
 
@@ -498,7 +550,7 @@ function updateOptionSummary(): void {
 
 /**
  * Update the "Working" button to show what stage we're in.
- * 
+ *
  * @param stage The stage we're in. See progress_stage constant for options.
  */
 export async function updateStatus(stage: string) {
@@ -603,7 +655,9 @@ function updateConfirmationDialog(input_file: File): void {
   let megabytes = String(sillybytes / 100) + " MB";
 
   if (input_file.size > 500000000) {
-    megabytes = megabytes + ". This is a very large course. It's gonna take a while. It might hang your browser window"
+    megabytes =
+      megabytes +
+      ". This is a very large course. It's gonna take a while. It might hang your browser window";
   }
 
   let options = getOptions();
@@ -614,17 +668,45 @@ function updateConfirmationDialog(input_file: File): void {
     if (typeof human_readable_options[e] === "undefined") {
       return;
     }
-    option_list.push(
-      String(
-        "<strong>" +
-        human_readable_options[e] +
-        ":</strong> " +
-        options[e as keyof object]
-      )
-    )
-  }
-  );
-  option_list.forEach((e, i) => { (option_string += `<li>${e}</li>`) });
+    let description = String(
+      human_readable_details[String(e)][String(options[e as keyof object]) as keyof object]
+    );
+    let special_settings = [
+      "num_attempts",
+      "pass_percent",
+      "num_attempts_no_change",
+      "pass_percent_no_change",
+    ];
+    if (special_settings.includes(e)) {
+      if (e === "num_attempts") {
+        if (options.num_attempts_no_change) {
+          description = "<strong>Number of Attempts:</strong> No change.";
+        } else if (options.num_attempts <= 0) {
+          description = "<strong>Number of Attempts:</strong> setting all to unlimited";
+        } else {
+          description =
+            "<strong>Number of Attempts:</strong> setting all to " + options.num_attempts;
+        }
+      } else if (e === "pass_percent") {
+        if (options.pass_percent_no_change) {
+          description = "<strong>Passing Percentage:</strong> No change.";
+        } else if (options.pass_percent <= 0) {
+          description = "<strong>Passing Percentage:</strong> setting all to no minimum";
+        } else {
+          description =
+            "<strong>Passing Percentage:</strong> setting all to " + options.pass_percent + "%";
+        }
+      } else if (e === "num_attempts_no_change" || e === "pass_percent_no_change") {
+        return;
+      }
+    } else {
+      description = "<strong>" + human_readable_options[e] + ":</strong> " + description;
+    }
+    option_list.push(description);
+  });
+  option_list.forEach((e, i) => {
+    option_string += `<li>${e}</li>`;
+  });
   option_string += "</ul>";
 
   let modal_body = document.getElementById("confirmation_dialog");
@@ -711,10 +793,7 @@ async function processFile(): Promise<void> {
 
     // If we're locking and requiring the course, let's make every video "cannot skip ahead".
     // If we're unlocking, free the videos from the shackles of linear time.
-    if (
-      options.lock_unlock === "lock" &&
-      options.required_optional === "require"
-    ) {
+    if (options.lock_unlock === "lock" && options.required_optional === "require") {
       json_files = disableVideoScrubbing(json_files);
       console.debug("Video scrubbing disabled");
     } else if (options.lock_unlock === "unlock") {
@@ -751,12 +830,14 @@ async function processFile(): Promise<void> {
 
 /**
  * Takes in the content from the tarball, gives us back something more usable.
- * @param tar_content 
- * @param options 
+ * @param tar_content
+ * @param options
  * @returns an array of objects with the name of the file and the parsed JSON data.
  */
-async function parseJson(tar_content: Archive, options: object): Promise<{ name: string; data: any }[]> {
-
+async function parseJson(
+  tar_content: Archive,
+  options: object
+): Promise<{ name: string; data: any }[]> {
   // Get the individual json files from the tarball
   // (We're not altering any other files.)
   await updateStatus("Parsing JSON");
@@ -827,10 +908,7 @@ async function testFile(): Promise<void> {
       if (f.fileNamePrefix === "" || f.fileName.startsWith(f.fileNamePrefix)) {
         new_tarball.addBinaryFile(f.fileName, f.toUint8Array());
       } else {
-        new_tarball.addBinaryFile(
-          f.fileNamePrefix + "/" + f.fileName,
-          f.content as Uint8Array
-        );
+        new_tarball.addBinaryFile(f.fileNamePrefix + "/" + f.fileName, f.content as Uint8Array);
       }
     }
   }
@@ -851,16 +929,14 @@ async function testFile(): Promise<void> {
  */
 async function getTarFiles(): Promise<Archive> {
   // Get the file
-  const input_file_element = document.getElementById(
-    "input_tarball"
-  ) as HTMLInputElement;
+  const input_file_element = document.getElementById("input_tarball") as HTMLInputElement;
   if (!input_file_element.files) {
     console.error("Could not find the file");
-    return new Promise(() => { });
+    return new Promise(() => {});
   }
   if (input_file_element.files.length === 0) {
     console.error("No file uploaded");
-    return new Promise(() => { });
+    return new Promise(() => {});
   }
   const input_file = input_file_element.files[0];
 
@@ -920,16 +996,10 @@ async function writeTarFile(
         // Would be nice if we could just use names.
         new_tarball.addDirectory(f.fileName);
       } else {
-        if (
-          f.fileNamePrefix === "" ||
-          f.fileName.startsWith(f.fileNamePrefix)
-        ) {
+        if (f.fileNamePrefix === "" || f.fileName.startsWith(f.fileNamePrefix)) {
           new_tarball.addBinaryFile(f.fileName, f.toUint8Array());
         } else {
-          new_tarball.addBinaryFile(
-            f.fileNamePrefix + "/" + f.fileName,
-            f.content as Uint8Array
-          );
+          new_tarball.addBinaryFile(f.fileNamePrefix + "/" + f.fileName, f.content as Uint8Array);
         }
       }
     }
@@ -1005,7 +1075,7 @@ async function makeDownloadLinks(
 // Utilities
 /////////////////////////////////////////
 
-// Basic sleep function 
+// Basic sleep function
 export function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms || 1000));
+  return new Promise((resolve) => setTimeout(resolve, ms || 1000));
 }
