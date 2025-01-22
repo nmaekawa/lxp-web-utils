@@ -15,6 +15,7 @@ const PATHS = {
 
 module.exports = {
   devServer: {
+    // TODO: Work up an https server for local development
     static: path.resolve(__dirname, 'dist'),
     port: 8080,
     hot: true
