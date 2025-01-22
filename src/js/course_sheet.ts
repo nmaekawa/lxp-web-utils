@@ -281,7 +281,11 @@ function getContentSample(te: CourseObject): string {
   } else if (te.type.includes("QUESTION") && !te.type.includes("SET")) {
     te_content_sample = te.data.question;
   } else if (te.type.includes("IMAGE")) {
-    te_content_sample = "Alt text: " + te.meta.alt;
+    if(te.meta.alt){
+      te_content_sample = "Alt text: " + te.meta.alt;
+    }else{
+      te_content_sample = "Alt text: " + te.data.alt;
+    }
   } else if(te.type.includes("PDF")) {
     te_content_sample = "PDF - no title given";
     if ("url" in te.data.assets) {
