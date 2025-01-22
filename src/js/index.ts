@@ -987,17 +987,15 @@ async function writeTarFile(
       );
       new_tarball.addTextFile(f.fileName, file_string);
     } else {
-      if (f.fileSize === 0) {
-        // We're treating all size 0 "files" as folders, which I know is not necessarily correct.
-        // I would like to use f.type here, but there are complications.
-        // type 53 is a folder, type 48 is a file.
-        // There's a Type 120, no idea what that is but it shows up sometimes with PaxHeaders.
-        // There's also a pending pull request to switch 53 and 48 to 0 and 5.
-        // Would be nice if we could just use names.
+      if (f.header.isDirectoryHeader) {
         new_tarball.addDirectory(f.fileName);
       } else {
-        if (f.fileNamePrefix === "" || f.fileName.startsWith(f.fileNamePrefix)) {
-          new_tarball.addBinaryFile(f.fileName, f.toUint8Array());
+        if (f.fileNamePrefix === "") {
+          new_tarball.addBinaryFile(f.fileName, f.content as Uint8Array);
+        } else if (f.fileName.startsWith(f.fileNamePrefix)) {
+          // Why this slice? Remove the header and...
+          // uh... no idea why the 118 works, but it seems to be universal.
+          new_tarball.addBinaryFile(f.fileName, f.toUint8Array().slice(f.header.byteLength, -118));
         } else {
           new_tarball.addBinaryFile(f.fileNamePrefix + "/" + f.fileName, f.content as Uint8Array);
         }
