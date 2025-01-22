@@ -299,6 +299,7 @@ function getContentSample(te: CourseObject): string {
     }
   } else if (te.type.includes("CDA_VIDEO")) {
     te_content_sample = "Video - no title given";
+    // TODO: Pull the content sample from the transcript or captions.
     if ("title" in te.meta) {
       if (te.meta.title != "") {
         te_content_sample = "Video: " + te.meta.title;
