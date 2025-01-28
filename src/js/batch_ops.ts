@@ -303,10 +303,10 @@ async function setSectionGrain(
   for (let act of activities) {
     try {
       delete act.sc_position;
-    } catch (e) {}
+    } catch (e) { }
     try {
       delete act.section_position;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   let all_element_parents = elements.map((e) => e.activity_id);
@@ -569,18 +569,19 @@ export async function cleanCourse(
 > {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0]
     .data;
+  let activity_ids = activities.map((a) => a.id);
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
   await updateStatus("Cleaning course");
 
   // If there are any elements that are output_only and detached, we need to strip them out.
   // The LXP will export them, but not re-import them.
-  let elem_no_output_detached = elements.filter(function (e) {
+  elements = elements.filter(function (e) {
     return !(e.data.inputOutputType === "OUTPUT_ONLY" && e.detached);
   });
   // If there are TEs linked to a TE that doesn't exist, that causes issues too.
   // Unfortunately, we can't fix the links and they break on import.
   // Toss anything with refs.linked present (it's an array).
-  let elem_no_missing_links = elem_no_output_detached.filter((e) => {
+  elements = elements.filter((e) => {
     try {
       if (e.refs.linked.length > 0) {
         return false;
@@ -591,45 +592,83 @@ export async function cleanCourse(
     return true;
   });
 
-  let all_element_parents = elem_no_missing_links.map((e) => e.activity_id);
+  // From the top of the container hierarchy on down, 
+  // remove anything whose parent doesn't exist.
+  // It will throw an error on import.
+  // Doing this as an array of arrays to allow multiple items at the same level.
+  let activity_hierarchy = [
+    ["LONG_HLXP_SCHEMA/FOLDER"],
+    ["LONG_HLXP_SCHEMA/PAGE"],
+    ["SECTION_CONTAINER"],
+    ["SECTION"],
+    ["INVISIBLE_CONTAINER",
+      "CEK_QUESTION_SET",
+      "EXPAND_CONTAINER"],
+  ];
 
-  // Keep only INVISIBLE_CONTAINERs that have child elements.
-  let empty_invisible_ids = activities
-    .filter(function (a) {
-      return (
-        a.type === "INVISIBLE_CONTAINER" && !all_element_parents.includes(a.id)
-      );
-    })
-    .map((a) => a.id);
-  let non_empty_activities = activities.filter(function (a) {
-    return !empty_invisible_ids.includes(a.id);
+  for (let act_level of activity_hierarchy) {
+    activities = activities.filter((a) => {
+      for (let act_type of act_level) {
+        if (a.type === act_type) {
+          if (activity_ids.includes(a.parent_id) || a.parent_id === null) {
+            // You have a parent or are top-level, you get to stay.
+            return true;
+          }
+          // Orphans are sent off to become Batman.
+          return false;
+        }
+      }
+    });
+    // Reset the list of all activity IDs to remove anything we just removed.
+    activity_ids = activities.map((a) => a.id);
+  }
+
+  // Now that the activity list is cleaned up, remove any orphaned elements.
+  elements = elements.filter((e) => {
+    return activity_ids.includes(e.activity_id);
   });
 
-  // Keep only SECTIONs that have child activities.
-  let sections_with_children = activities
-    .filter(function (a) {
-      return (
-        a.type === "INVISIBLE_CONTAINER" ||
-        a.type === "CEK_QUESTION_SET" ||
-        a.type === "EXPAND_CONTAINER"
-      );
-    })
-    .map((a) => a.parent_id);
-  let empty_section_ids = activities
-    .filter(function (a) {
-      return a.type === "SECTION" && !sections_with_children.includes(a.id);
-    })
-    .map((a) => a.id);
-  non_empty_activities = non_empty_activities.filter(function (a) {
-    return !empty_section_ids.includes(a.id);
-  });
+  // Remove any bottom-level activities that have no child elements.
+  let bottom_level = activity_hierarchy.slice(-1)[0];
+  for (let act_type of bottom_level) {
+    activities = activities.filter((a) => {
+      // Include anything that *isn't* a bottom-level activity of this type.
+      if (a.type !== act_type) {
+        return true;
+      }
+      // Include anything that has child elements.
+      let children_of_this = elements.filter((e) => e.activity_id === a.id);
+      if (children_of_this.length > 0) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  // Remove any section-level activities with no children.
+  // Higher-level activities are ok without children.
+  let section_level = activity_hierarchy.slice(-2)[0];
+  for (let act_type of section_level) {
+    activities = activities.filter((a) => {
+      // Include anything that *isn't* a section-level activity of this type.
+      if (a.type !== act_type) {
+        return true;
+      }
+      // Include anything that has child activities.
+      let children_of_this = activities.filter((a) => a.parent_id === a.id);
+      if (children_of_this.length > 0) {
+        return true;
+      }
+      return false;
+    });
+  }
 
   json_files.forEach((f) => {
     if (f.name.includes("activities")) {
-      f.data = non_empty_activities;
+      f.data = activities;
     }
     if (f.name.includes("elements")) {
-      f.data = elem_no_missing_links;
+      f.data = elements;
     }
   });
 
