@@ -548,8 +548,12 @@ export function disableVideoScrubbing(
 }
 
 /**
- * Placeholder
- * @param json_files
+ * Removes some specific items from the courseware:
+ *  - All "detached" (i.e. deleted) items
+ *  - Elements linked to elements that don't exist.
+ *  - Elements and activities without parents.
+ *  - Elements that are output_only and detached.
+ * @param json_files A dictionary of the course's JSON files
  * @returns The course's JSON files
  */
 export async function cleanCourse(
@@ -568,18 +572,8 @@ export async function cleanCourse(
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
   await updateStatus("Cleaning course");
 
-  // Clear out temporary position values.
-  for (let act of activities) {
-    try {
-      delete act.sc_position;
-    } catch (e) {}
-    try {
-      delete act.section_position;
-    } catch (e) {}
-  }
-
   // If there are any elements that are output_only and detached, we need to strip them out.
-  // This is because the LXP doesn't like them. Hopefully will be fixed soon.
+  // The LXP will export them, but not re-import them.
   let elem_no_output_detached = elements.filter(function (e) {
     return !(e.data.inputOutputType === "OUTPUT_ONLY" && e.detached);
   });
