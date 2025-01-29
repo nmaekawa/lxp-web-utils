@@ -3,6 +3,18 @@
 import { v4 as uuidv4 } from "uuid";
 import { updateStatus } from "./index";
 import { CourseObject, getCoursewareInOrder } from "./course_sheet";
+import { bottom } from "@popperjs/core";
+
+// Doing this as an array of arrays to allow multiple items at the same level.
+const activity_hierarchy = [
+  ["LONG_HLXP_SCHEMA/FOLDER"],
+  ["LONG_HLXP_SCHEMA/PAGE"],
+  ["SECTION_CONTAINER"],
+  ["SECTION"],
+  ["INVISIBLE_CONTAINER",
+    "CEK_QUESTION_SET",
+    "EXPAND_CONTAINER"],
+];
 
 /**
  * Handles all locking/unlocking and required/optional settings.
@@ -568,7 +580,6 @@ export async function cleanCourse(
 > {
   let activities = json_files.filter((e) => e.name.includes("activities"))[0]
     .data;
-  let activity_ids = activities.map((a) => a.id);
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
   await updateStatus("Cleaning course");
 
@@ -591,76 +602,76 @@ export async function cleanCourse(
     return true;
   });
 
-  // From the top of the container hierarchy on down, 
-  // remove anything whose parent doesn't exist.
-  // It will throw an error on import.
-  // Doing this as an array of arrays to allow multiple items at the same level.
-  let activity_hierarchy = [
-    ["LONG_HLXP_SCHEMA/FOLDER"],
-    ["LONG_HLXP_SCHEMA/PAGE"],
-    ["SECTION_CONTAINER"],
-    ["SECTION"],
-    ["INVISIBLE_CONTAINER",
-      "CEK_QUESTION_SET",
-      "EXPAND_CONTAINER"],
-  ];
+  // What else causes problems:
+  // - Activities with nonexistent parents
+  // - Empty bottom-level activities (like an INVISIBLE_CONTAINER with no TEs)
+  // - Empty SECTIONs
+  // - TEs that point to nonexistent activities
 
-  for (let act_level of activity_hierarchy) {
-    activities = activities.filter((a) => {
-      for (let act_type of act_level) {
-        if (a.type === act_type) {
-          if (activity_ids.includes(a.parent_id) || a.parent_id === null) {
-            // You have a parent or are top-level, you get to stay.
-            return true;
-          }
-          // Orphans are sent off to become Batman.
-          return false;
-        }
-      }
-    });
-    // Reset the list of all activity IDs to remove anything we just removed.
-    activity_ids = activities.map((a) => a.id);
-  }
+  // Remove any activities whose parent doesn't exist.
+  // (If they're null, that's ok - null parent means top-level)
+  let activity_ids = activities.map((a) => a.id);
+  activities = activities.filter(function (a) {
+    if (activity_ids.includes(a.parent_id) || a.parent_id === null) {
+      return true;
+    }else{
+      console.log("Removing orphan: ", a);
+      return false;
+    }
+  });
+  // Regenerate the list of all activity IDs
+  activity_ids = activities.map((a) => a.id);
 
-  // Now that the activity list is cleaned up, remove any orphaned elements.
-  elements = elements.filter((e) => {
+  // Make a list of childless bottom-level activities and remove them.  
+  let bottom_levels = activity_hierarchy.slice(-1)[0];
+  let bottom_level_kids_shown = activities.filter(function (a) {
+    return bottom_levels.includes(a.type);
+  }).map(function (a) {
+    return {
+      id: a.id,
+      kids: elements.filter((e) => e.activity_id === a.id)
+    };
+  });
+  let childless_activities = bottom_level_kids_shown.filter(function (a) {
+    return a.kids.length === 0;
+  });
+  activities = activities.filter(function (a) {
+    return !childless_activities.map((a) => a.id).includes(a.id);
+  });
+  // Regenerate the list of all activity IDs
+  activity_ids = activities.map((a) => a.id);
+
+  // Make a list of childless sections and remove them.
+  let sections_kids_shown = activities.filter((a) => a.type === "SECTION").map(function (a) {
+    return {
+      id: a.id,
+      kids: activities.filter((b) => b.parent_id === a.id).map((c) => c.id)
+    };
+  });
+  console.debug("Sections, with kids shown: ", sections_kids_shown);
+  let childless_sections = sections_kids_shown.filter(function (a) {
+    return a.kids.length === 0;
+  });
+  activities = activities.filter(function (a) {
+    return !childless_sections.map((a) => a.id).includes(a.id);
+  });
+  // Regenerate the list of all activity IDs
+  activity_ids = activities.map((a) => a.id);
+
+  // Remove any elements whose parent doesn't exist.
+  elements = elements.filter(function (e) {
     return activity_ids.includes(e.activity_id);
   });
 
-  // Remove any bottom-level activities that have no child elements.
-  let bottom_level = activity_hierarchy.slice(-1)[0];
-  for (let act_type of bottom_level) {
-    activities = activities.filter((a) => {
-      // Include anything that *isn't* a bottom-level activity of this type.
-      if (a.type !== act_type) {
-        return true;
-      }
-      // Include anything that has child elements.
-      let children_of_this = elements.filter((e) => e.activity_id === a.id);
-      if (children_of_this.length > 0) {
-        return true;
-      }
-      return false;
-    });
-  }
+  // Testing. At this point, nothing should be without a parent.
+  // Make a set of all the activity IDs and all the parent IDs, and subtract them.
+  let final_activity_ids = activities.map((a) => a.id);
+  let final_activity_parent_ids = activities.map((a) => a.parent_id);
+  let final_element_parent_ids = elements.map((e) => e.activity_id);
+  let all_parent_ids = final_activity_parent_ids.concat(final_element_parent_ids);
+  let difference = final_activity_ids.filter((x) => !all_parent_ids.includes(x));
+  console.debug("Difference: ", difference);
 
-  // Remove any section-level activities with no children.
-  // Higher-level activities are ok without children.
-  let section_level = activity_hierarchy.slice(-2)[0];
-  for (let act_type of section_level) {
-    activities = activities.filter((a) => {
-      // Include anything that *isn't* a section-level activity of this type.
-      if (a.type !== act_type) {
-        return true;
-      }
-      // Include anything that has child activities.
-      let children_of_this = activities.filter((a) => a.parent_id === a.id);
-      if (children_of_this.length > 0) {
-        return true;
-      }
-      return false;
-    });
-  }
 
   json_files.forEach((f) => {
     if (f.name.includes("activities")) {
