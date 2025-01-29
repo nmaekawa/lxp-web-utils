@@ -549,7 +549,6 @@ export function disableVideoScrubbing(
 
 /**
  * Removes some specific items from the courseware:
- *  - All "detached" (i.e. deleted) items
  *  - Elements linked to elements that don't exist.
  *  - Elements and activities without parents.
  *  - Elements that are output_only and detached.
