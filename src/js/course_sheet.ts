@@ -92,7 +92,11 @@ export async function createCourseSheet(
         temp_row.filename = c.data.assetFilename;
       }
       if (c.type.includes("IMAGE")) {
-        temp_row.filename = c.data.assetFilename;
+        temp_row.filename = c.data.assets.url
+          .split("___")
+          .pop()
+          .split("/")
+          .pop()
       }
     }
 
@@ -104,7 +108,7 @@ export async function createCourseSheet(
     // If it's the exact same name, assume it's a duplicate and skip it.
     // Otherwise, push a merge of the location and row to the CSV array.
     if (temp_row.te_name != last_te_name) {
-      course_csv_array.push({...location, ...temp_row});
+      course_csv_array.push({ ...location, ...temp_row });
       last_te_name = temp_row.te_name;
     }
   });
@@ -242,21 +246,21 @@ function getCoursewareName(courseware: CourseObject): string {
     let temp_name = "Nameless " + courseware.type + " " + courseware.id;
     try {
       if (courseware.data.name) {
-        return courseware.data.name;
+        return courseware.data.name.trim();
       }
     } catch (TypeError) {
       /*Do nothing*/
     }
     try {
       if (courseware.data.title) {
-        return courseware.data.title;
+        return courseware.data.title.trim();
       }
     } catch (TypeError) {
       /*Do nothing*/
     }
     try {
       if (courseware.meta.title) {
-        return courseware.meta.title;
+        return courseware.meta.title.trim();
       }
     } catch (TypeError) {
       /*Do nothing*/
@@ -281,18 +285,18 @@ function getContentSample(te: CourseObject): string {
   } else if (te.type.includes("QUESTION") && !te.type.includes("SET")) {
     te_content_sample = te.data.question;
   } else if (te.type.includes("IMAGE")) {
-    if(te.meta.alt){
+    if (te.meta.alt) {
       te_content_sample = "Alt text: " + te.meta.alt;
-    }else{
+    } else {
       te_content_sample = "Alt text: " + te.data.alt;
     }
-  } else if(te.type.includes("PDF")) {
+  } else if (te.type.includes("PDF")) {
     te_content_sample = "PDF - no title given";
     if ("url" in te.data.assets) {
       // Normally a long random string, ___, and the filename.
       if (te.data.assets.url != "") {
         te_content_sample = "PDF: " + te.data.assets.url.split("___").splice(1,).join();
-        if(te_content_sample === "") {
+        if (te_content_sample === "") {
           te_content_sample = te.data.assets.url;
         }
       }
