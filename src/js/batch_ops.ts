@@ -583,46 +583,13 @@ export async function cleanCourse(
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
   await updateStatus("Cleaning course");
 
-  // If there are any elements that are output_only and detached, we need to strip them out.
-  // The LXP will export them, but not re-import them.
-  elements = elements.filter(function (e) {
-    return !(e.data.inputOutputType === "OUTPUT_ONLY" && e.detached);
-  });
-  // If there are TEs linked to a TE that doesn't exist, that causes issues too.
-  // Unfortunately, we can't fix the links and they break on import.
-  // Toss anything with refs.linked present (it's an array).
-  elements = elements.filter((e) => {
-    try {
-      if (e.refs.linked.length > 0) {
-        return false;
-      }
-    } catch (e) {
-      return true;
-    }
-    return true;
-  });
-
-  // What else causes problems:
-  // - Activities with nonexistent parents
-  // - Empty bottom-level activities (like an INVISIBLE_CONTAINER with no TEs)
-  // - Empty SECTIONs
-  // - TEs that point to nonexistent activities
-
-  // Remove any activities whose parent doesn't exist.
-  // (If they're null, that's ok - null parent means top-level)
-  let activity_ids = activities.map((a) => a.id);
-  activities = activities.filter(function (a) {
-    if (activity_ids.includes(a.parent_id) || a.parent_id === null) {
-      return true;
-    }else{
-      console.log("Removing orphan: ", a);
-      return false;
-    }
-  });
-  // Regenerate the list of all activity IDs
-  activity_ids = activities.map((a) => a.id);
-
-  // Make a list of childless bottom-level activities and remove them.  
+  // Ok, let's try this the simple way.
+  // I tried to be picky and careful about it and it didn't work,
+  // so now I'm just going to throw out the course history during the cleaning process.
+  // If it's detached (i.e. not in the course), vaporize it.
+  activities = activities.filter((a) => !a.detached);
+  elements = elements.filter((e) => !e.detached);
+  // If it's an empty bottom-level container or section, vaporize it.
   let bottom_levels = activity_hierarchy.slice(-1)[0];
   let bottom_level_kids_shown = activities.filter(function (a) {
     return bottom_levels.includes(a.type);
@@ -638,8 +605,6 @@ export async function cleanCourse(
   activities = activities.filter(function (a) {
     return !childless_activities.map((a) => a.id).includes(a.id);
   });
-  // Regenerate the list of all activity IDs
-  activity_ids = activities.map((a) => a.id);
 
   // Make a list of childless sections and remove them.
   let sections_kids_shown = activities.filter((a) => a.type === "SECTION").map(function (a) {
@@ -655,24 +620,15 @@ export async function cleanCourse(
   activities = activities.filter(function (a) {
     return !childless_sections.map((a) => a.id).includes(a.id);
   });
-  // Regenerate the list of all activity IDs
-  activity_ids = activities.map((a) => a.id);
+  // Childless section containers and higher levels are fine.
 
   // Remove any elements whose parent doesn't exist.
+  let activity_ids = activities.map((a) => a.id);
   elements = elements.filter(function (e) {
     return activity_ids.includes(e.activity_id);
   });
 
-  // Testing. At this point, nothing should be without a parent.
-  // Make a set of all the activity IDs and all the parent IDs, and subtract them.
-  let final_activity_ids = activities.map((a) => a.id);
-  let final_activity_parent_ids = activities.map((a) => a.parent_id);
-  let final_element_parent_ids = elements.map((e) => e.activity_id);
-  let all_parent_ids = final_activity_parent_ids.concat(final_element_parent_ids);
-  let difference = final_activity_ids.filter((x) => !all_parent_ids.includes(x));
-  console.debug("Difference: ", difference);
-
-
+  // Write the cleaned-up data back to the json_files.
   json_files.forEach((f) => {
     if (f.name.includes("activities")) {
       f.data = activities;
