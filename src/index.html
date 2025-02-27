@@ -93,6 +93,7 @@
     </div>
 
     <div class="accordion">
+
       <div class="accordion-item">
         <h2 class="accordion-header">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -103,44 +104,6 @@
         </h2>
         <div id="panelsStayOpen-Access" class="accordion-collapse collapse container">
           <div class="accordion-body row">
-            <div class="col-md-4">
-              <h3>Locking</h3>
-              <ul class="list-unstyled form-check">
-                <li>
-                  <label><input type="radio" class="form-check-input" id="lock" name="lock_unlock" value="lock" />
-                    Lock all sections</label>
-                </li>
-                <li>
-                  <label><input type="radio" class="form-check-input" id="unlock" name="lock_unlock" value="unlock" />
-                    Unlock all sections</label>
-                </li>
-                <li>
-                  <label><input type="radio" class="form-check-input" id="keep_locking" name="lock_unlock"
-                      value="no_change" checked />
-                    No change</label>
-                </li>
-              </ul>
-            </div>
-            <div class="col-md-4">
-              <h3>Requirements</h3>
-              <ul class="list-unstyled form-check">
-                <li>
-                  <label class="form-check-label"><input type="radio" class="form-check-input" id="require"
-                      name="req_opt" value="require" />
-                    Require all sections</label>
-                </li>
-                <li>
-                  <label class="form-check-label"><input type="radio" class="form-check-input" id="optional"
-                      name="req_opt" value="optional" />
-                    Make all sections optional</label>
-                </li>
-                <li>
-                  <label class="form-check-label"><input type="radio" class="form-check-input" id="keep_req"
-                      name="req_opt" value="no_change" checked />
-                    No change</label>
-                </li>
-              </ul>
-            </div>
             <div class="col-md-4">
               <h3>Videos</h3>
               <ul class="list-unstyled form-check">
@@ -333,6 +296,63 @@
                 <li>
                   <label class="form-check-label"><input class="form-check-input" type="checkbox" id="just_test"
                       name="just_test" value="just_test" />Just test the tar library</label>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p></p>
+    <h2>Obsolete</h2>
+    <div class="accordion">
+      <div class="accordion-item">
+        <h3 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+            data-bs-target="#panelsStayOpen-Access-obsolete" aria-expanded="false"
+            aria-controls="panelsStayOpen-Access-obsolete">
+            <span class="h3">Access</span>
+            <span id="obsolete-access-details" class="settings-details"></span>
+          </button>
+        </h3>
+        <div id="panelsStayOpen-Access-obsolete" class="accordion-collapse collapse container">
+          <div class="accordion-body row">
+            <div class="col-md-4">
+              <h3>Locking</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label><input type="radio" class="form-check-input" id="lock" name="lock_unlock" value="lock" />
+                    Lock all sections</label>
+                </li>
+                <li>
+                  <label><input type="radio" class="form-check-input" id="unlock" name="lock_unlock" value="unlock" />
+                    Unlock all sections</label>
+                </li>
+                <li>
+                  <label><input type="radio" class="form-check-input" id="keep_locking" name="lock_unlock"
+                      value="no_change" checked />
+                    No change</label>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-4">
+              <h3>Requirements</h3>
+              <ul class="list-unstyled form-check">
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="require"
+                      name="req_opt" value="require" />
+                    Require all sections</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="optional"
+                      name="req_opt" value="optional" />
+                    Make all sections optional</label>
+                </li>
+                <li>
+                  <label class="form-check-label"><input type="radio" class="form-check-input" id="keep_req"
+                      name="req_opt" value="no_change" checked />
+                    No change</label>
                 </li>
               </ul>
             </div>

@@ -432,7 +432,8 @@ function updateOptionSummary(): void {
   let section_span = document.getElementById("section-details");
   let qset_span = document.getElementById("qset-details");
   let output_span = document.getElementById("output-details");
-  if (!access_span || !section_span || !output_span || !qset_span) {
+  let obsolete_access_span = document.getElementById("obsolete-access-details");
+  if (!access_span || !section_span || !output_span || !qset_span || !obsolete_access_span) {
     console.error("Could not find one of the details spans");
     return;
   }
@@ -444,23 +445,7 @@ function updateOptionSummary(): void {
   qset_span.textContent = "";
 
   // Locking row
-  let access_options = "Locking: ";
-  if (options.lock_unlock === "lock") {
-    access_options += "<span class='changed-setting'>lock</span>, ";
-  } else if (options.lock_unlock === "unlock") {
-    access_options += "<span class='changed-setting'>unlock</span>, ";
-  } else {
-    access_options += "no change, ";
-  }
-  access_options += "Requirement: ";
-  if (options.required_optional === "require") {
-    access_options += "<span class='changed-setting'>required</span>";
-  } else if (options.required_optional === "optional") {
-    access_options += "<span class='changed-setting'>optional</span>";
-  } else {
-    access_options += "no change";
-  }
-  access_options += ", Scrubbing: ";
+  let access_options = "Scrubbing: ";
   if (options.scrubbing === "disable") {
     access_options += "<span class='changed-setting'>disable</span>";
   } else if (options.scrubbing === "enable") {
@@ -546,6 +531,25 @@ function updateOptionSummary(): void {
     output_options += "<span class='changed-setting'>No spreadsheet</span>";
   }
   output_span.innerHTML = output_options;
+
+  // Obsolete options
+  let obsolete_access = "Locking: ";
+  if (options.lock_unlock === "lock") {
+    obsolete_access += "<span class='changed-setting'>lock</span>, ";
+  } else if (options.lock_unlock === "unlock") {
+    obsolete_access += "<span class='changed-setting'>unlock</span>, ";
+  } else {
+    obsolete_access += "no change, ";
+  }
+  obsolete_access += "Requirement: ";
+  if (options.required_optional === "require") {
+    obsolete_access += "<span class='changed-setting'>required</span>";
+  } else if (options.required_optional === "optional") {
+    obsolete_access += "<span class='changed-setting'>optional</span>";
+  } else {
+    obsolete_access += "no change";
+  }
+  obsolete_access_span.innerHTML = obsolete_access;
 }
 
 /**
@@ -932,11 +936,11 @@ async function getTarFiles(): Promise<Archive> {
   const input_file_element = document.getElementById("input_tarball") as HTMLInputElement;
   if (!input_file_element.files) {
     console.error("Could not find the file");
-    return new Promise(() => {});
+    return new Promise(() => { });
   }
   if (input_file_element.files.length === 0) {
     console.error("No file uploaded");
-    return new Promise(() => {});
+    return new Promise(() => { });
   }
   const input_file = input_file_element.files[0];
 

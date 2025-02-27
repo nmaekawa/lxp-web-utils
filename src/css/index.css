@@ -8,6 +8,16 @@ h2.accordion-header > button.accordion-button {
   background-color: gainsboro;
 }
 
+h3.accordion-header {
+  border: 1px dashed #000;
+  background-color: transparent;
+  padding: 0.25em;
+}
+
+h3.accordion-header > button.accordion-button {
+  background-color: transparent;
+}
+
 #confirmation_header_text {
   background-color: transparent;
   border: none;
