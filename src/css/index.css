@@ -1,20 +1,22 @@
-h2.accordion-header {
+h2.accordion-header,
+h3.accordion-header {
   border-bottom: 1px solid #000;
   background-color: gainsboro;
   padding: 0.25em;
 }
 
-h2.accordion-header > button.accordion-button {
+h2.accordion-header > button.accordion-button,
+h3.accordion-header > button.accordion-button {
   background-color: gainsboro;
 }
 
-h3.accordion-header {
+h3.obsolete-header {
   border: 1px dashed #000;
   background-color: transparent;
   padding: 0.25em;
 }
 
-h3.accordion-header > button.accordion-button {
+h3.obsolete-header > button.accordion-button {
   background-color: transparent;
 }
 
