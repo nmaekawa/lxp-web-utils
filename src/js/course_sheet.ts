@@ -92,11 +92,13 @@ export async function createCourseSheet(
         temp_row.filename = c.data.assetFilename;
       }
       if (c.type.includes("IMAGE")) {
-        temp_row.filename = c.data.assets.url
-          .split("___")
-          .pop()
-          .split("/")
-          .pop()
+        if("url" in c.data.assets) {
+          temp_row.filename = c.data.assets.url
+            .split("___")
+            .pop()
+            .split("/")
+            .pop()
+          }
       }
     }
 
