@@ -11,9 +11,7 @@ const activity_hierarchy = [
   ["LONG_HLXP_SCHEMA/PAGE"],
   ["SECTION_CONTAINER"],
   ["SECTION"],
-  ["INVISIBLE_CONTAINER",
-    "CEK_QUESTION_SET",
-    "EXPAND_CONTAINER"],
+  ["INVISIBLE_CONTAINER", "CEK_QUESTION_SET", "EXPAND_CONTAINER"],
 ];
 
 /**
@@ -36,12 +34,12 @@ export async function processSections(
     video_intro: boolean;
   }
 ): Promise<{ name: string; data: any[] }[]> {
-  let activities = json_files.filter((e) => e.name.includes("activities"))[0];
+  let activities = json_files.filter((e) => e.name.includes("activities"))[0].data;
   await updateStatus("Processing sections");
 
   // In every "SECTION" activity, apply or remove both lock and "completion required".
   // We're smashing whatever is there now.
-  for (let activity of activities.data) {
+  for (let activity of activities) {
     if (activity.type === "SECTION") {
       if (options.lock_unlock === "lock") {
         activity.data.locked = true;
@@ -56,16 +54,19 @@ export async function processSections(
     }
   }
 
+  // Update the json files with the new activities.
+  json_files.forEach((f) => {
+    if (f.name.includes("activities")) {
+      f.data = activities;
+    }
+  });
+
   if (options.section_scope !== "no_change") {
-    json_files = await setSectionGrain(json_files, options.section_scope);
+    json_files = await setSectionGrain(json_files, options);
   }
 
   if (options.video_credits || options.video_intro) {
-    json_files = await heuristicSectioning(
-      json_files,
-      options.video_credits,
-      options.video_intro
-    );
+    json_files = await heuristicSectioning(json_files, options.video_credits, options.video_intro);
   }
 
   // Send back the updated json files
@@ -146,7 +147,15 @@ export async function processQuestionSets(
  */
 async function setSectionGrain(
   json_files: { name: string; data: any[] }[],
-  section_scope: string
+  options: {
+    lock_unlock: string;
+    required_optional: string;
+    section_scope: string;
+    clean: boolean;
+    spreadsheet: boolean;
+    video_credits: boolean;
+    video_intro: boolean;
+  }
 ): Promise<{ name: string; data: any[] }[]> {
   //  Notes:
   //   - Every TE already has its own individual Invisible, so we can work with those
@@ -155,10 +164,9 @@ async function setSectionGrain(
   //   - Relevant Structure: Page --> Section Container --> Section(s) --> Invisible(s)
   //   - Skip detached activities.
 
-  console.debug("Section scope: " + section_scope);
+  console.debug("Section scope: " + options.section_scope);
 
-  let activities = json_files.filter((e) => e.name.includes("activities"))[0]
-    .data;
+  let activities = json_files.filter((e) => e.name.includes("activities"))[0].data;
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
 
   let repo_id = activities[0]["repository_id"];
@@ -178,17 +186,11 @@ async function setSectionGrain(
 
     // Get all the sections for this page.
     let sections = activities.filter(function (a) {
-      return (
-        section_container_ids.includes(a.parent_id) &&
-        !a.detached &&
-        !a.deleted_at
-      );
+      return section_container_ids.includes(a.parent_id) && !a.detached && !a.deleted_at;
     });
     // Temporarily attach the position of the section container to each section.
     sections.forEach(function (s) {
-      s.sc_position = section_containers.find(
-        (sc) => sc.id == s.parent_id
-      ).position;
+      s.sc_position = section_containers.find((sc) => sc.id == s.parent_id).position;
     });
     // No need to sort these; they're all getting thrown out anyway.
     let section_ids = sections.map((s) => s.id);
@@ -237,9 +239,9 @@ async function setSectionGrain(
     let sc_id = current_id;
     current_id += 1;
 
-    if (section_scope === "section_per_te") {
+    if (options.section_scope === "section_per_te") {
       // Each invisible is getting its own section.
-      console.debug("Sectioning by TE");
+      // console.debug("Sectioning by TE");
       invisibles.forEach(function (i) {
         activities.push({
           id: current_id,
@@ -248,7 +250,12 @@ async function setSectionGrain(
           uid: makeUUID(),
           type: "SECTION",
           position: i.position,
-          data: { title: "" },
+          data: {
+            title: "",
+            description: "",
+            completionRequired: options.required_optional === "require",
+            locked: options.lock_unlock === "lock",
+          },
           refs: {},
           detached: false,
           published_at: null,
@@ -267,7 +274,7 @@ async function setSectionGrain(
 
         current_id += 1;
       });
-    } else if (section_scope === "section_per_page") {
+    } else if (options.section_scope === "section_per_page") {
       // Create one section for each section container on the page.
       console.debug("Sectioning by page");
       let one_section = {
@@ -277,7 +284,12 @@ async function setSectionGrain(
         uid: makeUUID(),
         type: "SECTION",
         position: 1,
-        data: { title: p.data.title },
+        data: {
+          title: p.data.title,
+          description: "",
+          completionRequired: options.required_optional === "require",
+          locked: options.lock_unlock === "lock",
+        },
         refs: {},
         detached: false,
         published_at: null,
@@ -315,10 +327,10 @@ async function setSectionGrain(
   for (let act of activities) {
     try {
       delete act.sc_position;
-    } catch (e) { }
+    } catch (e) {}
     try {
       delete act.section_position;
-    } catch (e) { }
+    } catch (e) {}
   }
 
   let all_element_parents = elements.map((e) => e.activity_id);
@@ -327,9 +339,7 @@ async function setSectionGrain(
   // (Don't touch other things at the Invisible level, like Expandables.)
   let empty_invisible_ids = activities
     .filter(function (a) {
-      return (
-        a.type === "INVISIBLE_CONTAINER" && !all_element_parents.includes(a.id)
-      );
+      return a.type === "INVISIBLE_CONTAINER" && !all_element_parents.includes(a.id);
     })
     .map((a) => a.id);
   let non_empty_activities = activities.filter(function (a) {
@@ -362,13 +372,10 @@ async function heuristicSectioning(
   video_credits: boolean,
   video_intro: boolean
 ): Promise<{ name: string; data: any[] }[]> {
-  let activities = json_files.filter((e) => e.name.includes("activities"))[0]
-    .data;
+  let activities = json_files.filter((e) => e.name.includes("activities"))[0].data;
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
 
-  console.debug(
-    "video credits: " + video_credits + ", video intro: " + video_intro
-  );
+  console.debug("video credits: " + video_credits + ", video intro: " + video_intro);
 
   // Start by making a nicer structure to work with.
   // This will be an array of copies of section containers, each with
@@ -432,10 +439,7 @@ async function heuristicSectioning(
           // Is it just one expandable with one HTML TE?
           if (next_section.contents.length === 1) {
             let next_invis = next_section.contents[0];
-            if (
-              next_invis.contents.length === 1 &&
-              next_invis.type.includes("EXPAND_CONTAINER")
-            ) {
+            if (next_invis.contents.length === 1 && next_invis.type.includes("EXPAND_CONTAINER")) {
               let next_te = next_invis.contents[0];
               if (next_te.type.includes("HTML")) {
                 // Move the Expandable container out of the next section and into the current one.
@@ -471,12 +475,8 @@ async function heuristicSectioning(
  * @param courseware_in_order
  * @returns
  */
-function getNestedStructure(
-  courseware_in_order: CourseObject[]
-): CourseObject[] {
-  let section_containers = courseware_in_order.filter(
-    (a) => a.type === "SECTION_CONTAINER"
-  );
+function getNestedStructure(courseware_in_order: CourseObject[]): CourseObject[] {
+  let section_containers = courseware_in_order.filter((a) => a.type === "SECTION_CONTAINER");
   let sections = courseware_in_order.filter((a) => a.type === "SECTION");
   let all_section_ids = sections.map((s) => s.id);
   let invisibles_and_friends = courseware_in_order.filter(function (a) {
@@ -578,8 +578,7 @@ export async function cleanCourse(
     data: any[];
   }[]
 > {
-  let activities = json_files.filter((e) => e.name.includes("activities"))[0]
-    .data;
+  let activities = json_files.filter((e) => e.name.includes("activities"))[0].data;
   let elements = json_files.filter((e) => e.name.includes("elements"))[0].data;
   await updateStatus("Cleaning course");
 
@@ -591,14 +590,16 @@ export async function cleanCourse(
   elements = elements.filter((e) => !e.detached);
   // If it's an empty bottom-level container or section, vaporize it.
   let bottom_levels = activity_hierarchy.slice(-1)[0];
-  let bottom_level_kids_shown = activities.filter(function (a) {
-    return bottom_levels.includes(a.type);
-  }).map(function (a) {
-    return {
-      id: a.id,
-      kids: elements.filter((e) => e.activity_id === a.id)
-    };
-  });
+  let bottom_level_kids_shown = activities
+    .filter(function (a) {
+      return bottom_levels.includes(a.type);
+    })
+    .map(function (a) {
+      return {
+        id: a.id,
+        kids: elements.filter((e) => e.activity_id === a.id),
+      };
+    });
   let childless_activities = bottom_level_kids_shown.filter(function (a) {
     return a.kids.length === 0;
   });
@@ -607,12 +608,14 @@ export async function cleanCourse(
   });
 
   // Make a list of childless sections and remove them.
-  let sections_kids_shown = activities.filter((a) => a.type === "SECTION").map(function (a) {
-    return {
-      id: a.id,
-      kids: activities.filter((b) => b.parent_id === a.id).map((c) => c.id)
-    };
-  });
+  let sections_kids_shown = activities
+    .filter((a) => a.type === "SECTION")
+    .map(function (a) {
+      return {
+        id: a.id,
+        kids: activities.filter((b) => b.parent_id === a.id).map((c) => c.id),
+      };
+    });
   console.debug("Sections, with kids shown: ", sections_kids_shown);
   let childless_sections = sections_kids_shown.filter(function (a) {
     return a.kids.length === 0;
