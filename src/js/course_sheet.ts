@@ -89,7 +89,16 @@ export async function createCourseSheet(
       temp_row.te_content_sample = getContentSample(c);
       if (c.type.includes("VIDEO")) {
         temp_row.duration = secToHMS(c.data.duration);
-        temp_row.filename = c.data.assetFilename;
+        //temp_row.filename = c.data.assetFilename;
+        if ("transcript" in c.data) {
+            temp_row.filename = c.data.transcript.key;
+        }
+        else if ("transcript" in c.meta) {
+            temp_row.filename = c.meta.transcript.key;
+        }
+        else {
+            temp_row.filename = "";
+        }
       }
       if (c.type.includes("IMAGE")) {
         if("assets" in c.data && "url" in c.data.assets) {
@@ -281,7 +290,8 @@ function getCoursewareName(courseware: CourseObject): string {
 function getContentSample(te: CourseObject): string {
   let te_content_sample = "";
   if (te.type.includes("HTML")) {
-    te_content_sample = te.data.content;
+    //te_content_sample = te.data.content;
+    te_content_sample = te.uid;
   } else if (te.type.includes("REFLECTION") || te.type.includes("POLL")) {
     te_content_sample = te.data.prompt.content;
   } else if (te.type.includes("QUESTION") && !te.type.includes("SET")) {
